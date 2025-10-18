@@ -1,0 +1,13 @@
+{
+  "name": "snafleshub-monorepo",
+  "private": true,
+  "version": "0.2.0",
+  "scripts": {
+    "dev": "node run-dev.js",
+    "dev:mock": "node run-dev.js --mock-backend",
+    "test:e2e": "node run-e2e.js"
+  },
+  "devDependencies": {
+    "puppeteer": "^22.8.0"
+  }
+}
