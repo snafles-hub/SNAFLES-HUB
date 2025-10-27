@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "node run-dev.js",
     "dev:mock": "node run-dev.js --mock-backend",
-    "test:e2e": "node run-e2e.js"
+    "test:e2e": "node run-e2e.js",
+    "generate:logo": "node scripts/render-logo.js",
+    "audit:icons": "node scripts/check-icons.js"
   },
   "devDependencies": {
-    "puppeteer": "^22.8.0"
+    "puppeteer": "^22.8.0",
+    "sharp": "^0.34.4"
   }
 }

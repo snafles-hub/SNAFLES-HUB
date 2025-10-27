@@ -3,6 +3,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { CreditCard, Lock, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { showPaymentFailed, isOffline } from '../../utils/notify';
 import { paymentsAPI } from '../../services/api';
 
 // Initialize Stripe
@@ -48,6 +49,11 @@ const PaymentForm = ({ amount, onSuccess, onError, orderId }) => {
     setLoading(true);
 
     try {
+      if (isOffline()) {
+        toast.error('You are offline. Please reconnect and try again.')
+        setLoading(false)
+        return
+      }
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: elements.getElement(CardElement),
@@ -55,7 +61,7 @@ const PaymentForm = ({ amount, onSuccess, onError, orderId }) => {
       });
 
       if (error) {
-        toast.error(error.message);
+        showPaymentFailed(error.message);
         onError && onError(error);
       } else if (paymentIntent.status === 'succeeded') {
         toast.success('Payment successful!');
@@ -63,7 +69,7 @@ const PaymentForm = ({ amount, onSuccess, onError, orderId }) => {
       }
     } catch (error) {
       console.error('Payment error:', error);
-      toast.error('Payment failed. Please try again.');
+      showPaymentFailed(error?.message || 'Payment failed. Please try again.');
       onError && onError(error);
     } finally {
       setLoading(false);

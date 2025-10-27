@@ -13,6 +13,7 @@ import {
   Save,
   AlertCircle
 } from 'lucide-react';
+import { isOffline, showProductCreateSuccess, showProductUpdateFailed, showImageUploadError, showInventoryLowAlert } from '../../utils/notify';
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
@@ -23,6 +24,7 @@ const ProductManagement = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [selectedImages, setSelectedImages] = useState([]);
 
   const categories = ['Jewelry', 'Decor', 'Clothing', 'Accessories', 'Home', 'Art'];
 
@@ -62,6 +64,10 @@ const ProductManagement = () => {
 
   const handleSave = async (productData) => {
     try {
+      if (isOffline()) {
+        toast.error('You are offline. Please reconnect and try again.');
+        return;
+      }
       if (editingProduct) {
         const updated = await productsAPI.updateProduct(editingProduct.id, {
           ...productData,
@@ -73,7 +79,7 @@ const ProductManagement = () => {
           ...productData,
           images: [productData.image || '/placeholder-product.jpg']
         });
-        toast.success('Product created (awaiting approval)');
+        showProductCreateSuccess(productData.name);
       }
       setShowModal(false);
       setEditingProduct(null);
@@ -94,9 +100,42 @@ const ProductManagement = () => {
       }))
       );
     } catch (e) {
-      toast.error(e.message || 'Save failed');
+      showProductUpdateFailed(e?.message || 'Save failed');
     }
   };
+
+  // Initial load + inventory low alert
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await vendorAnalyticsAPI.getProducts();
+        const list = res.products || [];
+        if (!mounted) return;
+        const mapped = list.map(p => ({
+          id: p._id || p.id,
+          name: p.name,
+          price: p.price,
+          stock: p.stock,
+          category: p.category,
+          status: p.isActive ? 'active' : 'inactive',
+          image: Array.isArray(p.images) ? p.images[0] : p.image,
+          description: p.description,
+          featured: Boolean(p.featured),
+          createdAt: p.createdAt?.slice(0,10)
+        }));
+        setProducts(mapped);
+        const low = mapped.find(p => typeof p.stock === 'number' && p.stock > 0 && p.stock < 5);
+        if (low) {
+          showInventoryLowAlert(low.name, low.stock);
+        }
+      } catch (e) {
+        // silent; page already handles empty state
+      }
+    };
+    load();
+    return () => { mounted = false };
+  }, []);
 
   const ProductModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -231,6 +270,23 @@ const ProductManagement = () => {
                     accept="image/*"
                     className="hidden"
                     id="image-upload"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (!files.length) return;
+                      const MAX_MB = 5;
+                      for (const f of files) {
+                        if (!f.type.startsWith('image/')) {
+                          showImageUploadError('Unsupported file type. Please select images.');
+                          return;
+                        }
+                        if (f.size > MAX_MB * 1024 * 1024) {
+                          showImageUploadError(`File "${f.name}" exceeds ${MAX_MB}MB.`);
+                          return;
+                        }
+                      }
+                      setSelectedImages(files);
+                      toast.success(`${files.length} image(s) selected`);
+                    }}
                   />
                   <label
                     htmlFor="image-upload"

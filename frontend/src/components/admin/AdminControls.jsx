@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../../services/api'
 import toast from 'react-hot-toast'
+import { showDashboardLoadFailed, showUserSuspensionSuccess, showSettingsSaveFailed } from '../../utils/notify'
 
 const AdminControls = () => {
   const [vendors, setVendors] = useState([])
@@ -24,7 +25,7 @@ const AdminControls = () => {
       setUsers(u.data.users || u.data || [])
       setProducts(p.data.products || p.data || [])
     } catch (e) {
-      toast.error('Failed to load admin data')
+      showDashboardLoadFailed(e?.message || 'Failed to load admin data')
     } finally {
       setLoading(false)
     }
@@ -39,7 +40,7 @@ const AdminControls = () => {
       setNewVendor({ name: '', description: '', location: '', logo: '', banner: '', contact: { email: '' } })
       loadAll()
     } catch (e) {
-      toast.error(e?.message || 'Failed to create vendor')
+      showSettingsSaveFailed(e?.message || 'Failed to create vendor')
     }
   }
 
@@ -57,10 +58,14 @@ const AdminControls = () => {
   const setUserActive = async (id, active) => {
     try {
       await api.put(`/users/${id}/status`, { isActive: active })
-      toast.success('Status updated')
+      if (active === false) {
+        showUserSuspensionSuccess(id)
+      } else {
+        toast.success('Status updated')
+      }
       setUsers(prev => prev.map(u => (u.id||u._id)===id ? { ...u, isActive: active } : u))
     } catch (e) {
-      toast.error(e?.message || 'Failed to update status')
+      showSettingsSaveFailed(e?.message || 'Failed to update status')
     }
   }
 
@@ -70,7 +75,7 @@ const AdminControls = () => {
       toast.success(approved ? 'Product approved' : 'Product unapproved')
       setProducts(prev => prev.map(p => (p.id||p._id)===id ? { ...p, approved } : p))
     } catch (e) {
-      toast.error(e?.message || 'Failed to update product')
+      showSettingsSaveFailed(e?.message || 'Failed to update product')
     }
   }
 

@@ -235,6 +235,15 @@ const mockUsers = [
   }
 ];
 
+// Keep only demo accounts (customer, vendor, admin)
+// Removes any extra sample users/vendors while preserving expected demo logins
+const __KEEP_USER_EMAILS = new Set(['demo@snafles.com', 'vendor@snafles.com', 'admin@snafles.com']);
+for (let i = mockUsers.length - 1; i >= 0; i--) {
+  if (!__KEEP_USER_EMAILS.has(mockUsers[i]?.email)) {
+    mockUsers.splice(i, 1);
+  }
+}
+
 const mockProducts = [
   {
     id: "jewelry-001",
@@ -743,7 +752,44 @@ const mockProducts = [
     createdAt: new Date(),
     updatedAt: new Date()
   }
+  ,
+  // Baani Makover: Press-on nails product
+  {
+    id: "baani-nails-001",
+    name: "Press-on Nails - Lilac & Nude Glitter Set",
+    description: "Handcrafted press-on nail set with lilac polish and nude glitter tips.",
+    detailedDescription: "Salon-quality press-on nails featuring a soft lilac finish and nude glitter accents. Easy to apply and reusable with care.",
+    price: 1499,
+    originalPrice: 1799,
+    images: [
+      "/images/products/baani-nails-001.jpg"
+    ],
+    category: "Accessories",
+    vendor: "vendor-007",
+    stock: 24,
+    rating: 4.9,
+    reviews: 0,
+    featured: true,
+    tags: ["nails", "press-on", "glitter", "lilac", "beauty"],
+    specifications: {
+      pieces: "24",
+      finish: "Gloss",
+      adhesive: "Tabs included"
+    },
+    customerReviews: [],
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
 ];
+
+// Keep only the minimal demo product (if present)
+const __KEEP_PRODUCT_IDS = new Set(['demo-001','baani-nails-001']);
+for (let i = mockProducts.length - 1; i >= 0; i--) {
+  if (!__KEEP_PRODUCT_IDS.has(mockProducts[i]?.id)) {
+    mockProducts.splice(i, 1);
+  }
+}
 
 const mockVendors = [
   {
@@ -887,7 +933,7 @@ const mockVendors = [
   },
   {
     id: "vendor-007",
-    name: "Bani Makeovers",
+    name: "Baani Makover",
     description: "Professional makeup artist and beauty consultant offering premium cosmetics and personalized beauty solutions for all skin types.",
     logo: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=300&fit=crop",
     banner: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&h=400&fit=crop",
@@ -911,6 +957,14 @@ const mockVendors = [
   }
 ];
 
+// Keep only the demo vendor profile that pairs with vendor@snafles.com
+const __KEEP_VENDOR_IDS = new Set(['vendor-002','vendor-006','vendor-007']);
+for (let i = mockVendors.length - 1; i >= 0; i--) {
+  if (!__KEEP_VENDOR_IDS.has(mockVendors[i]?.id)) {
+    mockVendors.splice(i, 1);
+  }
+}
+
 const buildMockOrders = (user = {}) => {
   const buyerId = user.id || user._id || 'demo-customer';
   const fallbackAddress = user.address || {
@@ -928,7 +982,7 @@ const buildMockOrders = (user = {}) => {
         name: 'Demo Product',
         price: 1999,
         images: [],
-        vendor: 'vendor-001'
+        vendor: 'vendor-002'
       }];
 
   return sampleProducts.map((product, index) => {
@@ -1646,6 +1700,9 @@ const mockSecondhand = [
   }
 ];
 
+// Clear second-hand dataset for a minimal demo-only environment
+mockSecondhand.length = 0;
+
 app.get('/api/secondhand', (req, res) => {
   try {
     const { category } = req.query || {};
@@ -1676,10 +1733,15 @@ app.get('/api/secondhand/:id', (req, res) => {
 });
 
 // Orders routes
+// In-memory store for orders created during this mock server session
+const mockCreatedOrders = [];
+
 app.get('/api/orders', auth, (req, res) => {
   try {
     const orders = buildMockOrders(req.user);
-    res.json({ orders });
+    // Combine ephemeral created orders for this user with generated examples
+    const createdForUser = mockCreatedOrders.filter(o => String(o.user) === String(req.user.id));
+    res.json({ orders: [...createdForUser, ...orders] });
   } catch (error) {
     console.error('Get orders error:', error);
     res.status(500).json({ message: 'Server error while fetching orders' });
@@ -1717,25 +1779,69 @@ app.post('/api/orders', auth, (req, res) => {
       user: req.user.id,
       items: normalizedItems,
       total,
-      status: 'pending',
+      status: 'confirmed',
       payment: {
-        status: 'pending',
+        status: 'completed',
         method: paymentMethod
       },
-      shipping: {
-        address: shippingAddress,
-        status: 'pending'
-      },
+      // Flatten shipping fields to match frontend expectations
+      shipping: { ...shippingAddress, status: 'processing' },
       createdAt: new Date(),
       updatedAt: new Date()
     }
 
+    mockCreatedOrders.push(order)
     res.status(201).json({ message: 'Order created successfully', order })
   } catch (error) {
     console.error('Create order error:', error)
     res.status(500).json({ message: 'Server error while creating order' })
   }
 })
+
+// Public tracking by order number (used on success page when not an ObjectId)
+app.get('/api/orders/tracking/:orderNumber', (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    let order = mockCreatedOrders.find(o => String(o.orderNumber) === String(orderNumber));
+    if (!order) {
+      // Fallback: search generated sample orders
+      const generated = buildMockOrders({});
+      order = generated.find(o => String(o.orderNumber) === String(orderNumber));
+    }
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    return res.json({
+      order: {
+        orderNumber: order.orderNumber,
+        status: order.status,
+        tracking: order.tracking,
+        items: order.items,
+        shipping: order.shipping,
+        createdAt: order.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Track order error:', error)
+    res.status(500).json({ message: 'Server error while tracking order' })
+  }
+});
+
+// Get a single order by id (private)
+app.get('/api/orders/:id', auth, (req, res) => {
+  try {
+    const { id } = req.params;
+    const created = mockCreatedOrders.find(o => String(o.id) === String(id) && String(o.user) === String(req.user.id));
+    if (created) return res.json(created);
+    const generated = buildMockOrders(req.user);
+    const order = generated.find(o => String(o.id) === String(id));
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.json(order);
+  } catch (error) {
+    console.error('Get order error:', error)
+    res.status(500).json({ message: 'Server error while fetching order' })
+  }
+});
 
 // Upload routes
 app.post('/api/upload/single', auth, (req, res) => {

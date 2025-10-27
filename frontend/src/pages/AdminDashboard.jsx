@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import AdminControls from '../components/admin/AdminControls';
 import AnalyticsDashboard from '../components/admin/AnalyticsDashboard';
+import { showAdminAccessDenied, showAdminLoginRequired, showDashboardLoadFailed, showUserSuspensionSuccess } from '../utils/notify';
 
 const resolveEntityId = (entity) => entity?.id ?? entity?._id ?? entity?.vendorId ?? entity?.userId ?? entity?.email ?? null;
 
@@ -80,7 +81,13 @@ const AdminDashboard = () => {
   const [vendorOptions, setVendorOptions] = useState([]);
 
   useEffect(() => {
+    if (!user) {
+      showAdminLoginRequired();
+      navigate('/admin-login');
+      return;
+    }
     if (user?.role !== 'admin') {
+      showAdminAccessDenied();
       navigate('/admin-login');
       return;
     }
@@ -108,6 +115,7 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      showDashboardLoadFailed(error?.message || 'Failed to load dashboard');
       // Fallback to mock data if API fails
       setStats({
         totalUsers: 156,
@@ -215,6 +223,7 @@ const AdminDashboard = () => {
         const mapped = statusMap[requestedStatus] || 'active';
         if (mapped !== 'active') {
           await adminAPI.updateUserStatus(createdUserId, mapped);
+          showUserSuspensionSuccess(newUser.email || createdUserId);
         }
       }
       if (newUser.role && newUser.role !== 'customer') {

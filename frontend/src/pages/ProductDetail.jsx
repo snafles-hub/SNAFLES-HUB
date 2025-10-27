@@ -10,6 +10,7 @@ import RelatedProducts from '../components/products/RelatedProducts'
 // Negotiation/Chat/Bidding/Assistance/TryOn removed for minimal core
 import LoginModal from '../components/common/LoginModal'
 import toast from 'react-hot-toast'
+import { showOutOfStock, isOffline } from '../utils/notify'
 
 const ProductDetail = () => {
   const { id } = useParams()
@@ -123,6 +124,15 @@ const ProductDetail = () => {
     }
 
     try {
+      if (isOffline()) {
+        toast.error('You are offline. Please reconnect and try again.')
+        return
+      }
+      const available = typeof product?.stock === 'number' ? product.stock : 99
+      if (available < quantity || available <= 0) {
+        showOutOfStock()
+        return
+      }
       const productToAdd = {
         ...product,
         selectedVariant: selectedVariant,

@@ -58,6 +58,7 @@ import ReturnsPolicy from './pages/ReturnsPolicy'
 import HelperPointsPage from './pages/HelperPoints'
 import CookiePolicy from './pages/CookiePolicy'
 import UserSettings from './pages/UserSettings'
+import NetworkStatusBanner from './components/common/NetworkStatusBanner'
 
 function App() {
   console.log('App component rendering...')
@@ -65,6 +66,7 @@ function App() {
   return (
     <Router>
         <TitleManager />
+        <NetworkStatusBanner />
         <AuthProvider>
           <CartProvider>
             <ProductProvider>

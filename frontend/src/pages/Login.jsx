@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Check } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
+import { isOffline, showAuthError } from '../utils/notify'
 import PrivacyPolicyModal from '../components/modals/PrivacyPolicyModal'
 import TermsOfServiceModal from '../components/modals/TermsOfServiceModal'
 import Logo from '../components/common/Logo'
@@ -84,6 +85,11 @@ const Login = () => {
       toast.error('Please agree to our Terms of Service and Privacy Policy')
       return
     }
+    // Offline check
+    if (isOffline()) {
+      toast.error('You are offline. Please reconnect and try again.')
+      return
+    }
     
     setLoading(true)
 
@@ -96,7 +102,10 @@ const Login = () => {
           const dest = getPostAuthRedirect()
           navigate(dest, { replace: true })
         } else {
-          toast.error(result.message)
+          const key = showAuthError(result.message)
+          if (key === 'account-not-found') {
+            setEmailError('No account found for this email. You can create one below.')
+          }
         }
       } else {
         // Enforce strong password on registration
@@ -126,7 +135,11 @@ const Login = () => {
         }
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.')
+      if (isOffline()) {
+        toast.error('You are offline. Please reconnect and try again.')
+      } else {
+        showAuthError(error?.message || 'Login failed')
+      }
     } finally {
       setLoading(false)
     }

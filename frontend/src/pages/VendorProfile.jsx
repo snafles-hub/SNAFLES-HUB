@@ -154,8 +154,9 @@ const VendorProfile = () => {
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">
                     {vendor.name}
                     {vendor.isVerified && (
-                      <span className="ml-2 text-blue-500 text-sm font-normal">
-                        ✓ Verified
+                      <span className="ml-2 text-blue-500 text-sm font-normal inline-flex items-center">
+                        <CheckCircle className="inline h-4 w-4 mr-1" />
+                        Verified
                       </span>
                     )}
                   </h1>

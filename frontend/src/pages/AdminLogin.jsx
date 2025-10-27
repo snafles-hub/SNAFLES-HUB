@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Shield, ArrowLeft, Users, BarChart3, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { isOffline, showAdminAccessDenied } from '../utils/notify';
 
 const AdminLogin = () => {
   const { login } = useAuth();
@@ -26,13 +27,18 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
+      if (isOffline()) {
+        toast.error('You are offline. Please reconnect and try again.');
+        setLoading(false);
+        return;
+      }
       const result = await login(formData.email, formData.password);
       if (result.success && result.user?.role === 'admin') {
         const firstName = (result.user?.name || 'Admin').split(' ')[0];
         toast.success(`Welcome back, ${firstName}!`);
         navigate('/dashboard/admin', { replace: true });
       } else {
-        toast.error(result.message || 'Invalid admin credentials');
+        showAdminAccessDenied();
       }
     } catch (error) {
       toast.error('Login failed. Please try again.');

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 220" role="img" aria-labelledby="title desc">
+  <title id="title">SnaflesHub Logo</title>
+  <desc id="desc">Wordmark for SnaflesHub with a small storefront icon between Snafles and Hub.</desc>
+
+  <!-- Background is transparent -->
+  <defs>
+    <style>
+      .brand{fill:#2B2BD6} /* deep indigo */
+      .accent{fill:#7AA5FF} /* light blue */
+    </style>
+  </defs>
+
+  <!-- Snafles text -->
+  <g font-family='Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, Apple Color Emoji, Segoe UI Emoji' font-weight="700">
+    <text x="28" y="108" font-size="84" class="brand">Snafles</text>
+  </g>
+
+  <!-- Storefront icon -->
+  <g transform="translate(370,58)" class="accent">
+    <!-- Awning -->
+    <rect x="0" y="0" width="92" height="22" rx="4"/>
+    <path d="M0 22 h92 v10 c0 8 -10 12 -16 12 s-16 -4 -16 -12 c0 8 -10 12 -16 12 s-16 -4 -16 -12 c0 8 -10 12 -16 12 s-12 -4 -12 -12 z"/>
+    <!-- Body -->
+    <rect x="8" y="54" width="76" height="52" rx="6" fill="none" stroke="#7AA5FF" stroke-width="8"/>
+    <!-- Door -->
+    <rect x="30" y="70" width="28" height="36" rx="4" fill="none" stroke="#7AA5FF" stroke-width="8"/>
+  </g>
+
+  <!-- Hub text -->
+  <g font-family='Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, Apple Color Emoji, Segoe UI Emoji' font-weight="700">
+    <text x="486" y="132" font-size="64" class="accent">Hub</text>
+  </g>
+</svg>

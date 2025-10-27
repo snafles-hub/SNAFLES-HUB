@@ -63,6 +63,13 @@
   .dark .btn-outline {
     @apply border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white;
   }
+
+  /* Ensure Lucide icons align and don't shrink unexpectedly */
+  .lucide {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
 }
 
 @layer components {

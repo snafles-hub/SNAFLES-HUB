@@ -10,7 +10,7 @@ const Footer = () => {
           {/* Company Info */}
           <div>
             <div className="mb-4">
-              <Logo size="small" className="text-white" />
+              <Logo size="small" variant="light" className="opacity-90" />
             </div>
             <p className="text-gray-300 mb-1">
               Your global marketplace for unique handmade treasures. Connecting artisans with customers worldwide.

@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Store, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { isOffline, showVendorLoginFailed, showVendorSuspended } from '../utils/notify';
 
 const VendorLogin = () => {
   const { loginVendor } = useAuth();
@@ -26,16 +27,31 @@ const VendorLogin = () => {
     setLoading(true);
 
     try {
+      if (isOffline()) {
+        toast.error('You are offline. Please reconnect and try again.');
+        setLoading(false);
+        return;
+      }
       const result = await loginVendor(formData.email, formData.password);
       if (result.success) {
         const firstName = (result.user?.name || 'Vendor').split(' ')[0];
         toast.success(`Welcome back, ${firstName}!`);
         navigate('/dashboard/vendor', { replace: true });
       } else {
-        toast.error(result.message || 'Invalid vendor credentials');
+        const msg = String(result.message || '').toLowerCase();
+        if (msg.includes('suspend')) {
+          showVendorSuspended();
+        } else {
+          showVendorLoginFailed();
+        }
       }
     } catch (error) {
-      toast.error('Login failed. Please try again.');
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('suspend')) {
+        showVendorSuspended();
+      } else {
+        showVendorLoginFailed();
+      }
     } finally {
       setLoading(false);
     }
