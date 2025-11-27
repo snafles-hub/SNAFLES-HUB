@@ -56,7 +56,7 @@ const Navbar = () => {
   return (
     <header className="gradient-surface sticky top-0 z-50 border-b border-white/40 backdrop-blur-xl">
       {/* Top Bar */}
-      <div className="gradient-primary text-white py-3">
+      <div className="gradient-primary text-white py-3 hidden">
         <div className="container">
           <p className="text-center text-sm font-medium">
             🎉 Free shipping on orders over ₹999! New arrivals every week.
@@ -86,8 +86,8 @@ const Navbar = () => {
               Vendors
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
             </Link>
-            <Link to="/second-hand" className="text-gray-700 hover:text-blue-600 font-semibold transition-colors duration-300 relative group">
-              Second-Hand
+            <Link to="/pre-loved" className="text-gray-700 hover:text-blue-600 font-semibold transition-colors duration-300 relative group">
+              Pre Loved
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
             </Link>
             {user && (
@@ -186,10 +186,6 @@ const Navbar = () => {
                   <Store className="h-4 w-4 mr-1" />
                   Vendor
                 </Link>
-                <Link to="/admin-login" data-testid="nav-admin-login" className="btn btn-pink text-sm">
-                  <Shield className="h-4 w-4 mr-1" />
-                  Admin
-                </Link>
               </div>
             )}
 
@@ -239,8 +235,8 @@ const Navbar = () => {
               <Link to="/vendors" onClick={toggleMobileMenu} className="text-gray-700 hover:text-blue-600 font-semibold transition-colors duration-300 py-2">
                 Vendors
               </Link>
-              <Link to="/second-hand" onClick={toggleMobileMenu} className="text-gray-700 hover:text-blue-600 font-semibold transition-colors duration-300 py-2">
-                Second-Hand
+              <Link to="/pre-loved" onClick={toggleMobileMenu} className="text-gray-700 hover:text-blue-600 font-semibold transition-colors duration-300 py-2">
+                Pre Loved
               </Link>
               {/* Cart link removed per request (mobile) */}
               {user ? (
@@ -275,10 +271,6 @@ const Navbar = () => {
                   <Link to="/vendor-login" data-testid="nav-vendor-login" onClick={toggleMobileMenu} className="btn btn-secondary w-full text-center">
                     <Store className="h-4 w-4 mr-1" />
                     Vendor Login
-                  </Link>
-                  <Link to="/admin-login" data-testid="nav-admin-login" onClick={toggleMobileMenu} className="btn btn-pink w-full text-center">
-                    <Shield className="h-4 w-4 mr-1" />
-                    Admin Login
                   </Link>
                 </div>
               )}

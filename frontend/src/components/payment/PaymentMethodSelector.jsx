@@ -6,13 +6,21 @@ import NetBankingPayment from './NetBankingPayment';
 import CodPayment from './CodPayment';
 import HelperPointsPayment from './HelperPointsPayment';
 
-const PaymentMethodSelector = ({ amount, onSuccess, onError, orderId, onMethodChange }) => {
-  const [selectedMethod, setSelectedMethod] = useState('card');
+const PaymentMethodSelector = ({ amount, onSuccess, onError, orderId, onMethodChange, preferredMethod }) => {
+  const stripePk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+  const stripeConfigured = Boolean(stripePk && !String(stripePk).includes('your_publishable_key'))
+  const [selectedMethod, setSelectedMethod] = useState('cod');
   const [paymentMethods, setPaymentMethods] = useState([]);
 
   useEffect(() => {
     if (onMethodChange) onMethodChange(selectedMethod);
   }, [selectedMethod]);
+
+  const emitSuccess = (payload) => {
+    if (!onSuccess) return;
+    const paymentIntentId = payload?.paymentIntentId || payload?.id || payload?.paymentIntent?.id;
+    onSuccess({ paymentIntentId, raw: payload });
+  };
 
   const availableMethods = [
     {
@@ -21,7 +29,7 @@ const PaymentMethodSelector = ({ amount, onSuccess, onError, orderId, onMethodCh
       description: 'Visa, Mastercard, American Express',
       icon: CreditCard,
       color: 'blue',
-      enabled: true
+      enabled: stripeConfigured
     },
     {
       id: 'upi',
@@ -57,13 +65,28 @@ const PaymentMethodSelector = ({ amount, onSuccess, onError, orderId, onMethodCh
     }
   ];
 
+  useEffect(() => {
+    // If card is not configured, ensure selection is not "card"
+    if (!stripeConfigured && selectedMethod === 'card') {
+      setSelectedMethod('cod')
+    }
+  }, [stripeConfigured])
+
+  useEffect(() => {
+    if (!preferredMethod) return;
+    const target = availableMethods.find((m) => m.id === preferredMethod && m.enabled);
+    if (target && selectedMethod !== preferredMethod) {
+      setSelectedMethod(preferredMethod);
+    }
+  }, [preferredMethod])
+
   const renderPaymentMethod = () => {
     switch (selectedMethod) {
       case 'card':
         return (
           <StripePayment
             amount={amount}
-            onSuccess={onSuccess}
+            onSuccess={emitSuccess}
             onError={onError}
             orderId={orderId}
           />
@@ -72,7 +95,7 @@ const PaymentMethodSelector = ({ amount, onSuccess, onError, orderId, onMethodCh
         return (
           <UpiPayment
             amount={amount}
-            onSuccess={onSuccess}
+            onSuccess={emitSuccess}
             onError={onError}
             orderId={orderId}
           />
@@ -81,7 +104,7 @@ const PaymentMethodSelector = ({ amount, onSuccess, onError, orderId, onMethodCh
         return (
           <NetBankingPayment
             amount={amount}
-            onSuccess={onSuccess}
+            onSuccess={emitSuccess}
             onError={onError}
             orderId={orderId}
           />
@@ -90,7 +113,7 @@ const PaymentMethodSelector = ({ amount, onSuccess, onError, orderId, onMethodCh
         return (
           <CodPayment
             amount={amount}
-            onSuccess={onSuccess}
+            onSuccess={emitSuccess}
             onError={onError}
             orderId={orderId}
           />
@@ -99,7 +122,7 @@ const PaymentMethodSelector = ({ amount, onSuccess, onError, orderId, onMethodCh
         return (
           <HelperPointsPayment
             amount={amount}
-            onSuccess={onSuccess}
+            onSuccess={emitSuccess}
             onError={onError}
             orderId={orderId}
           />

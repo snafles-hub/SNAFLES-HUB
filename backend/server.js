@@ -10,6 +10,11 @@ const csrf = require('./middleware/csrf');
 require('dotenv').config();
 require('./worker/repayment');
 
+// Ensure a dev JWT secret exists to sign tokens locally
+if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'production') {
+  process.env.JWT_SECRET = 'dev-secret-change-me';
+}
+
 // Connect to database
 connectDB();
 
@@ -98,6 +103,10 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    // In non-prod, allow any localhost/127.* origin to reduce CORS friction during dev
+    if (!isProd && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+      return callback(null, true);
+    }
     return callback(null, false);
   },
   credentials: true

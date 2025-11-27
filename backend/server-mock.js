@@ -780,11 +780,104 @@ const mockProducts = [
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date()
+  },
+
+  // Additional lightweight samples for the shop
+  {
+    id: "home-002",
+    name: "Handwoven Storage Basket",
+    description: "Eco-friendly jute basket with leather handles",
+    detailedDescription: "A versatile handwoven basket made from natural jute fibers with soft leather handles. Perfect for organizing throws, toys, or magazines while adding a warm, crafted feel to any room.",
+    price: 34.99,
+    images: [
+      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=400&h=400&fit=crop"
+    ],
+    category: "Home & Garden",
+    vendor: "vendor-001",
+    stock: 20,
+    rating: 4.6,
+    reviews: 38,
+    featured: false,
+    tags: ["basket", "storage", "jute", "handmade"],
+    specifications: {
+      material: "Natural jute, leather handles",
+      dimensions: "14in x 10in",
+      care: "Spot clean"
+    },
+    customerReviews: [],
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: "decor-002",
+    name: "Minimalist Desk Lamp",
+    description: "Matte black metal lamp with warm LED glow",
+    detailedDescription: "A sleek, adjustable desk lamp that pairs a matte black finish with a warm LED bulb for cozy, focused lighting. Ideal for workspaces or bedside tables.",
+    price: 59.99,
+    originalPrice: 69.99,
+    images: [
+      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=400&h=400&fit=crop"
+    ],
+    category: "Decor",
+    vendor: "vendor-002",
+    stock: 12,
+    rating: 4.7,
+    reviews: 41,
+    featured: true,
+    tags: ["lamp", "lighting", "desk", "minimal"],
+    specifications: {
+      material: "Powder-coated metal",
+      bulb: "Warm LED (included)",
+      cordLength: "1.5m"
+    },
+    customerReviews: [],
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: "sports-002",
+    name: "Deep Tissue Foam Roller",
+    description: "High-density roller for muscle recovery",
+    detailedDescription: "Durable, high-density foam roller that helps relieve muscle tightness, improve mobility, and speed up post-workout recovery.",
+    price: 24.99,
+    images: [
+      "https://images.unsplash.com/photo-1592432678016-e910b452f9a2?w=400&h=400&fit=crop"
+    ],
+    category: "Sports & Fitness",
+    vendor: "vendor-004",
+    stock: 30,
+    rating: 4.5,
+    reviews: 54,
+    featured: false,
+    tags: ["foam roller", "recovery", "mobility", "fitness"],
+    specifications: {
+      length: "18 in",
+      diameter: "5 in",
+      material: "High-density EVA foam"
+    },
+    customerReviews: [],
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
   }
 ];
 
-// Keep only the minimal demo product (if present)
-const __KEEP_PRODUCT_IDS = new Set(['demo-001','baani-nails-001']);
+// Keep a small, stable set of mock products for smoke tests
+const __KEEP_PRODUCT_IDS = new Set([
+  'jewelry-001',
+  'decor-001',
+  'clothing-001',
+  'clothing-002',
+  'electronics-001',
+  'sports-001',
+  'sports-002',
+  'home-002',
+  'decor-002',
+  'demo-001',
+  'baani-nails-001'
+]);
 for (let i = mockProducts.length - 1; i >= 0; i--) {
   if (!__KEEP_PRODUCT_IDS.has(mockProducts[i]?.id)) {
     mockProducts.splice(i, 1);
@@ -957,14 +1050,6 @@ const mockVendors = [
   }
 ];
 
-// Keep only the demo vendor profile that pairs with vendor@snafles.com
-const __KEEP_VENDOR_IDS = new Set(['vendor-002','vendor-006','vendor-007']);
-for (let i = mockVendors.length - 1; i >= 0; i--) {
-  if (!__KEEP_VENDOR_IDS.has(mockVendors[i]?.id)) {
-    mockVendors.splice(i, 1);
-  }
-}
-
 const buildMockOrders = (user = {}) => {
   const buyerId = user.id || user._id || 'demo-customer';
   const fallbackAddress = user.address || {
@@ -1017,6 +1102,16 @@ const buildMockOrders = (user = {}) => {
     };
   });
 };
+
+// Keep the vendors that back the retained products
+const __KEEP_VENDOR_IDS = new Set(['vendor-001', 'vendor-002', 'vendor-003', 'vendor-004', 'vendor-007']);
+if (Array.isArray(mockVendors)) {
+  for (let i = mockVendors.length - 1; i >= 0; i--) {
+    if (!__KEEP_VENDOR_IDS.has(mockVendors[i]?.id)) {
+      mockVendors.splice(i, 1);
+    }
+  }
+}
 
 // Capture default snapshots for seeding demo data on restart
 const __deepClone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -2505,10 +2600,9 @@ app.get('/api/products/search', (req, res) => {
 app.get('/api/users/wishlist', auth, (req, res) => {
   try {
     // Mock wishlist data
-    const wishlist = [
-      mockProducts[0], // First product
-      mockProducts[1]  // Second product
-    ];
+    const wishlist = Array.isArray(mockProducts)
+      ? mockProducts.slice(0, 2)
+      : [];
     
     res.json({ wishlist });
   } catch (error) {

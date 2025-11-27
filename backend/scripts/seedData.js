@@ -139,21 +139,36 @@ const seedProducts = async () => {
 
   const products = [
     {
-      name: 'Press-on Nails - Lilac & Nude Glitter Set',
-      description: 'Handcrafted press-on nail set with lilac polish and nude glitter tips.',
-      detailedDescription: 'Salon-quality press-on nails featuring a soft lilac finish and nude glitter accents. Easy to apply and reusable with care.',
-      price: 1499,
-      originalPrice: 1799,
-      images: ['/images/products/baani-nails-001.jpg'],
-      category: 'Accessories',
+      name: 'Tailored Frock Collection',
+      description: 'This Tailored Frock product is handmade and good quality, crafted with love and care.',
+      detailedDescription: 'Hand-stitched using premium cotton and silk blends, the Tailored Frock Collection celebrates timeless silhouettes that flatter every figure. Each piece is finished with artisan embroidery and adjustable straps for comfort.',
+      price: 3499,
+      originalPrice: 4299,
+      images: [
+        '/images/products/tailored-frock-001.jpg',
+        '/images/products/tailored-frock-002.jpg'
+      ],
+      category: 'Clothing',
       vendor: baani._id,
-      stock: 24,
+      stock: 18,
       rating: 4.9,
-      reviews: 0,
+      reviews: 14,
       featured: true,
-      tags: ['nails', 'press-on', 'glitter', 'lilac', 'beauty'],
+      tags: ['frock', 'tailored', 'handmade', 'clothing'],
       approved: true,
-      status: 'APPROVED'
+      status: 'APPROVED',
+      negotiable: false,
+      shipping: {
+        type: 'FLAT',
+        amount: 250,
+        city: 'Mumbai'
+      },
+      specifications: {
+        material: 'Cotton blend with silk lining',
+        care: 'Dry clean recommended',
+        origin: 'Made in India',
+        sizes: 'S, M, L, XL'
+      }
     }
   ]
 
@@ -173,11 +188,11 @@ const seedDatabase = async () => {
   try {
     await connectDB();
     
-    console.log('🌱 Seeding demo accounts + requested vendors...');
+    console.log('🌱 Seeding demo accounts + Baani Makover data...');
     await seedUsers();
     await seedVendors();
     await seedProducts();
-    console.log('✅ Seeding completed.');
+    console.log('? Seeding completed.');
     process.exit(0);
   } catch (error) {
     console.error('❌ Database seeding failed:', error);

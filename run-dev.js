@@ -33,6 +33,13 @@ if (!backendEnv.PORT) {
 if (!backendEnv.FRONTEND_URL) {
   backendEnv.FRONTEND_URL = `http://${frontendHost}:${frontendPort}`
 }
+// Ensure sane defaults for local development
+if (!backendEnv.NODE_ENV) {
+  backendEnv.NODE_ENV = 'development'
+}
+if (!backendEnv.JWT_SECRET && backendEnv.NODE_ENV !== 'production') {
+  backendEnv.JWT_SECRET = 'dev-secret-change-me'
+}
 
 const frontendEnv = { ...process.env }
 if (!frontendEnv.VITE_DEV_PORT) {

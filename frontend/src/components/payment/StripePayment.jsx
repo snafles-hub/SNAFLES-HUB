@@ -6,8 +6,10 @@ import toast from 'react-hot-toast';
 import { showPaymentFailed, isOffline } from '../../utils/notify';
 import { paymentsAPI } from '../../services/api';
 
-// Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_your_publishable_key_here');
+// Initialize Stripe (only when configured)
+const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ''
+const STRIPE_READY = Boolean(STRIPE_PK && !String(STRIPE_PK).includes('your_publishable_key'))
+const stripePromise = STRIPE_READY ? loadStripe(STRIPE_PK) : null
 
 const PaymentForm = ({ amount, onSuccess, onError, orderId }) => {
   const stripe = useStripe();
@@ -17,6 +19,7 @@ const PaymentForm = ({ amount, onSuccess, onError, orderId }) => {
 
   useEffect(() => {
     if (!amount || amount <= 0) return;
+    if (!STRIPE_READY) return;
     createPaymentIntent();
   }, [amount, orderId]);
 
@@ -42,6 +45,11 @@ const PaymentForm = ({ amount, onSuccess, onError, orderId }) => {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    if (!STRIPE_READY) {
+      toast.error('Card payments are disabled in this environment. Please use UPI or COD.');
+      onError && onError(new Error('Stripe not configured'))
+      return;
+    }
     if (!stripe || !elements) {
       return;
     }
@@ -90,6 +98,14 @@ const PaymentForm = ({ amount, onSuccess, onError, orderId }) => {
       },
     },
   };
+
+  if (!STRIPE_READY) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+        Card payments are not configured in this dev environment. Please select UPI or Cash on Delivery.
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

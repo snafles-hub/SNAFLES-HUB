@@ -299,7 +299,7 @@ const Home = () => {
             ))}
           </div>
         </div>
-      </section>
+      </section>)}
 
       {/* Featured Products Slider */}
       <section className="py-20 gradient-section">
@@ -415,7 +415,7 @@ const Home = () => {
             </Link>
           </div>
         </div>
-      </section>
+      </section>)}
 
       {/* New Arrivals */}
       <section className="py-20 gradient-section-alt">
@@ -462,7 +462,7 @@ const Home = () => {
       </section>
 
       {/* Featured Vendors */}
-      <section className="py-20 gradient-section">
+      {false && (<section className="py-20 gradient-section">
         <div className="container">
           <div className="text-center mb-16">
             <h2 className="heading-2 mb-4">Featured Vendors</h2>
@@ -594,7 +594,7 @@ const Home = () => {
             </Link>
           </div>
         </div>
-      </section>
+      </section>)}
 
       {/* Top Sellers of the Week */}
       <section className="py-20 gradient-section-alt">

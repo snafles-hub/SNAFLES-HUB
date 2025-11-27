@@ -33,7 +33,7 @@ const SecondHand = () => {
     <div className="container py-10">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Second-Hand Products</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Pre Loved Products</h1>
           <p className="text-gray-600">Browse preloved items submitted by our community</p>
         </div>
         <select className="input" value={category} onChange={(e)=>setCategory(e.target.value)}>

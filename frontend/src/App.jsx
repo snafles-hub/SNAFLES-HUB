@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import { CartProvider } from './contexts/CartContext'
@@ -97,11 +97,12 @@ function App() {
                           <Vendors />
                         </AuthGuard>
                       } />
-                      <Route path="/second-hand" element={
+                      <Route path="/pre-loved" element={
                         <AuthGuard requireAuth={false} guestAllowed={true}>
                           <SecondHand />
                         </AuthGuard>
                       } />
+                      <Route path="/second-hand" element={<Navigate to="/pre-loved" replace />} />
                       <Route path="/vendor/:id" element={
                         <AuthGuard requireAuth={false} guestAllowed={true}>
                           <VendorShop />

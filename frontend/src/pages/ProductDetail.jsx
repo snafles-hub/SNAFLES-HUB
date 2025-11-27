@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Star, Heart, ShoppingCart, Plus, Minus, Truck, Shield, RotateCcw, MessageSquare, Users, Zap, HelpingHand, Camera, ChevronLeft, ChevronRight } from 'lucide-react'
+import ShippingEstimator from '../components/shipping/ShippingEstimator'
 import { useProducts } from '../contexts/ProductContext'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -629,6 +630,12 @@ const ProductDetail = () => {
                   <div className="text-xs text-gray-600">30-day return</div>
                 </div>
               </div>
+            </div>
+
+            {/* Shipping Estimator */}
+            <div className="mt-6 card-premium p-6">
+              <h4 className="heading-4 text-gray-900 mb-4">Shipping to your location</h4>
+              <ShippingEstimator product={product} quantity={quantity} />
             </div>
           </div>
         </div>

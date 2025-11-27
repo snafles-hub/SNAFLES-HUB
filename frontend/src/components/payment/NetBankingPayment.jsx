@@ -81,10 +81,12 @@ const NetBankingPayment = ({ amount, onSuccess, onError, orderId }) => {
                 <span className="text-gray-600">Bank:</span>
                 <span className="font-semibold">{banks.find(b => b.id === selectedBank)?.name}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Order ID:</span>
-                <span className="font-mono">{orderId}</span>
-              </div>
+              {orderId && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Order ID:</span>
+                  <span className="font-mono">{orderId}</span>
+                </div>
+              )}
             </div>
           </div>
 

@@ -54,6 +54,23 @@ const Checkout = () => {
     nameOnCard: ''
   })
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card')
+  const [devPayments, setDevPayments] = useState(() => {
+    try {
+      // Ensure shipping info is valid
+      if (!validateShipping()) {
+        setLoading(false);
+        setProcessingPayment(false);
+        return;
+      }
+      if (paymentInfo.method === 'card' && !prebuiltPayment?.paymentIntentId) {
+        toast.error('Please complete card payment above first');
+        setLoading(false);
+        setProcessingPayment(false);
+        return;
+      }
+      return localStorage.getItem('devPayments') === '1'
+    } catch (_) { return false }
+  })
   const [redeemPoints, setRedeemPoints] = useState(0)
   const [errors, setErrors] = useState({})
 
@@ -126,7 +143,15 @@ const Checkout = () => {
     })
   }
 
-  const handlePlaceOrder = async () => {
+  useEffect(() => {
+    try { localStorage.setItem('devPayments', devPayments ? '1' : '0') } catch (_) {}
+    if (devPayments) {
+      setSelectedPaymentMethod('cod')
+      setPaymentInfo((prev) => ({ ...prev, method: 'cod' }))
+    }
+  }, [devPayments])
+
+  const handlePlaceOrder = async (prebuiltPayment) => {
     setLoading(true)
     setProcessingPayment(true)
     
@@ -159,18 +184,25 @@ const Checkout = () => {
       const orderResponse = await createOrder(orderData)
       const order = orderResponse.order
 
-      // Process payment
-      const paymentResponse = await processPayment(order.id, {
-        method: paymentInfo.method,
-        amount: effectiveTotal,
-        ...paymentInfo
-      })
+      // Process or reuse payment
+      let paymentIntentId = prebuiltPayment?.paymentIntentId
+      if (!paymentIntentId) {
+        const paymentResponse = await processPayment(order.id, {
+          method: paymentInfo.method,
+          amount: effectiveTotal,
+          ...paymentInfo
+        })
+        paymentIntentId = paymentResponse?.paymentIntentId
+      }
 
-      // Simulate payment confirmation (in real app, this would be handled by payment gateway)
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Simulate gateway round-trip before confirm
+      await new Promise(resolve => setTimeout(resolve, 500))
       
-      // Confirm payment
-      await confirmPayment(paymentResponse.paymentIntentId)
+      // Confirm payment against the order created
+      if (!paymentIntentId) {
+        throw new Error('Missing payment intent. Please try again.')
+      }
+      await confirmPayment({ paymentIntentId, orderId: order.id })
 
       // Clear cart only if not a direct product purchase
       if (!directProduct) {
@@ -397,20 +429,35 @@ const Checkout = () => {
               {step === 2 && (
                 <div className="bg-white rounded-xl shadow-sm p-6" data-testid="checkout-payment-section">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">Payment Information</h2>
+                  <div className="mb-4 flex items-center justify-between">
+                    <label className="flex items-center space-x-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={devPayments}
+                        onChange={(e) => setDevPayments(e.target.checked)}
+                        className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                      />
+                      <span>Use dev-safe payments (prefer COD/UPI)</span>
+                    </label>
+                    {devPayments && (
+                      <span className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">Card disabled in dev</span>
+                    )}
+                  </div>
                   
 
                   <PaymentMethodSelector
                     amount={effectiveTotal}
+                    preferredMethod={devPayments ? 'cod' : undefined}
                     onMethodChange={(m)=>{ setSelectedPaymentMethod(m); setPaymentInfo(prev=>({...prev, method: m})) }}
                     onSuccess={(paymentData) => {
-                      console.log('Payment successful:', paymentData);
-                      handlePlaceOrder();
+                      console.log('Payment initialized:', paymentData);
+                      // Use the created payment intent when placing the order
+                      handlePlaceOrder(paymentData);
                     }}
                     onError={(error) => {
                       console.error('Payment failed:', error);
                       toast.error('Payment failed. Please try again.');
                     }}
-                    orderId={`ORD-${Date.now()}`}
                   />
 
 

@@ -117,11 +117,13 @@ export const OrderProvider = ({ children }) => {
   };
 
   // Confirm payment
-  const confirmPayment = async (paymentIntentId) => {
+  const confirmPayment = async (payload) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await orderService.confirmPayment({ paymentIntentId, orderId: currentOrder?.id || currentOrder?._id });
+      const pid = typeof payload === 'string' ? payload : payload?.paymentIntentId;
+      const oid = typeof payload === 'object' && payload?.orderId ? payload.orderId : (currentOrder?.id || currentOrder?._id);
+      const response = await orderService.confirmPayment({ paymentIntentId: pid, orderId: oid });
       
       // Update current order status
       if (currentOrder) {

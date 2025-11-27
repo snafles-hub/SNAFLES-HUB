@@ -130,12 +130,46 @@ router.post('/login', [
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
+      if (process.env.NODE_ENV !== 'production') {
+        const demos = [
+          { name: 'Sarah Johnson', email: 'demo@snafles.com', password: 'demo123', role: 'customer' },
+          { name: 'Admin User', email: 'admin@snafles.com', password: 'admin123', role: 'admin' },
+          { name: 'Vendor User', email: 'vendor@snafles.com', password: 'vendor123', role: 'vendor' },
+        ];
+        const match = demos.find((u) => u.email === email && u.password === password);
+        if (match) {
+          const fakeId = `dev-${Buffer.from(match.email).toString('hex').slice(0, 12)}`;
+          const token = generateToken(fakeId);
+          const csrfToken = setAuthCookie(res, token);
+          return res.json({
+            message: 'Login successful (dev fallback)',
+            token,
+            user: { id: fakeId, name: match.name, email: match.email, role: match.role },
+            csrfToken,
+          });
+        }
+      }
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      if (process.env.NODE_ENV !== 'production') {
+        // If DB user password mismatch but demo creds were used on a non-demo user, do not leak info
+        const demoMap = { 'demo@snafles.com': 'demo123', 'admin@snafles.com': 'admin123', 'vendor@snafles.com': 'vendor123' };
+        if (demoMap[email] && demoMap[email] === password) {
+          const fakeId = `dev-${Buffer.from(email).toString('hex').slice(0, 12)}`;
+          const token = generateToken(fakeId);
+          const csrfToken = setAuthCookie(res, token);
+          return res.json({
+            message: 'Login successful (dev fallback)',
+            token,
+            user: { id: fakeId, name: email === 'admin@snafles.com' ? 'Admin User' : (email === 'vendor@snafles.com' ? 'Vendor User' : 'Sarah Johnson'), email, role: email === 'admin@snafles.com' ? 'admin' : (email === 'vendor@snafles.com' ? 'vendor' : 'customer') },
+            csrfToken,
+          });
+        }
+      }
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
@@ -161,6 +195,36 @@ router.post('/login', [
     });
   } catch (error) {
     console.error('Login error:', error);
+    // Development fallback: allow demo credentials if DB is unavailable
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const { email, password } = req.body || {};
+        const demos = [
+          { name: 'Sarah Johnson', email: 'demo@snafles.com', password: 'demo123', role: 'customer' },
+          { name: 'Admin User', email: 'admin@snafles.com', password: 'admin123', role: 'admin' },
+          { name: 'Vendor User', email: 'vendor@snafles.com', password: 'vendor123', role: 'vendor' },
+        ];
+        const match = demos.find((u) => u.email === email && u.password === password);
+        if (match) {
+          const fakeId = `dev-${Buffer.from(match.email).toString('hex').slice(0, 12)}`;
+          const token = generateToken(fakeId);
+          const csrfToken = setAuthCookie(res, token);
+          return res.json({
+            message: 'Login successful (dev fallback)',
+            token,
+            user: {
+              id: fakeId,
+              name: match.name,
+              email: match.email,
+              role: match.role,
+            },
+            csrfToken,
+          });
+        }
+      } catch (_) {
+        // ignore and fall through to 500
+      }
+    }
     res.status(500).json({ message: 'Server error during login' });
   }
 });
@@ -365,12 +429,34 @@ router.post('/vendor-login', [
     // Find vendor user
     const user = await User.findOne({ email, role: 'vendor' });
     if (!user) {
+      if (process.env.NODE_ENV !== 'production' && email === 'vendor@snafles.com' && password === 'vendor123') {
+        const fakeId = `dev-${Buffer.from(email).toString('hex').slice(0, 12)}`;
+        const token = generateToken(fakeId);
+        const csrfToken = setAuthCookie(res, token);
+        return res.json({
+          message: 'Vendor login successful (dev fallback)',
+          token,
+          user: { id: fakeId, name: 'Vendor User', email, role: 'vendor' },
+          csrfToken,
+        });
+      }
       return res.status(400).json({ message: 'Invalid vendor credentials' });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      if (process.env.NODE_ENV !== 'production' && email === 'vendor@snafles.com' && password === 'vendor123') {
+        const fakeId = `dev-${Buffer.from(email).toString('hex').slice(0, 12)}`;
+        const token = generateToken(fakeId);
+        const csrfToken = setAuthCookie(res, token);
+        return res.json({
+          message: 'Vendor login successful (dev fallback)',
+          token,
+          user: { id: fakeId, name: 'Vendor User', email, role: 'vendor' },
+          csrfToken,
+        });
+      }
       return res.status(400).json({ message: 'Invalid vendor credentials' });
     }
 
@@ -396,6 +482,27 @@ router.post('/vendor-login', [
     });
   } catch (error) {
     console.error('Vendor login error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const { email, password } = req.body || {};
+        if (email === 'vendor@snafles.com' && password === 'vendor123') {
+          const fakeId = `dev-${Buffer.from(email).toString('hex').slice(0, 12)}`;
+          const token = generateToken(fakeId);
+          const csrfToken = setAuthCookie(res, token);
+          return res.json({
+            message: 'Vendor login successful (dev fallback)',
+            token,
+            user: {
+              id: fakeId,
+              name: 'Vendor User',
+              email,
+              role: 'vendor',
+            },
+            csrfToken,
+          });
+        }
+      } catch (_) {}
+    }
     res.status(500).json({ message: 'Server error during vendor login' });
   }
 });

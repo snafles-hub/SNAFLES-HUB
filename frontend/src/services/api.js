@@ -128,7 +128,19 @@ const apiRequest = async (endpoint, options = {}) => {
         await fetchCsrfToken(true);
         return apiRequest(endpoint, { ...originalOptions, _csrfRetry: true });
       }
-      const message = data?.message || data?.error || `HTTP ${response.status}`;
+      let message = data?.message || data?.error || `HTTP ${response.status}`;
+      if (Array.isArray(data?.errors) && data.errors.length) {
+        const details = data.errors
+          .map((e) => {
+            if (!e) return null;
+            if (typeof e === 'string') return e;
+            const msg = e.msg || e.message || 'Invalid';
+            return e.param ? `${msg} (${e.param})` : msg;
+          })
+          .filter(Boolean)
+          .join('; ');
+        if (details) message = `${message} — ${details}`;
+      }
       throw new Error(message);
     }
 

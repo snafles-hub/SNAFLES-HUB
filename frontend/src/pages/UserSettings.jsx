@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import {
   User,
   Shield,
@@ -12,6 +12,10 @@ import {
   Globe2,
   Lock,
 } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { useAuth } from '../contexts/AuthContext'
+import { useOrders } from '../contexts/OrderContext'
+import { authAPI } from '../services/api'
 
 // Lightweight card and button primitives styled like shadcn/ui using Tailwind
 const Card = ({ className = '', children }) => (
@@ -83,6 +87,8 @@ const Section = ({ title, description, children, className = '' }) => (
 )
 
 const UserSettings = () => {
+  const { user, updateProfile } = useAuth()
+  const { orders, loadOrders } = useOrders()
   const MENU = useMemo(
     () => [
       { key: 'profile', label: 'Profile & Security', icon: Shield },
@@ -96,12 +102,104 @@ const UserSettings = () => {
 
   const [active, setActive] = useState('profile')
 
+  // Security: change password form state
+  const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' })
+  const [pwdLoading, setPwdLoading] = useState(false)
+
+  // Security: two-step verification (preference flag)
+  const [twoFA, setTwoFA] = useState(() => Boolean(user?.preferences?.twoFactorEnabled))
+
+  useEffect(() => {
+    setTwoFA(Boolean(user?.preferences?.twoFactorEnabled))
+  }, [user])
+
   // Preferences state (placeholder)
   const [currency, setCurrency] = useState('INR')
   const [notifications, setNotifications] = useState({
     orderUpdates: true,
     helperRequests: false,
   })
+
+  useEffect(() => {
+    // Initialize preferences from profile if present
+    if (user?.preferences) {
+      if (user.preferences.currency) setCurrency(user.preferences.currency)
+      const n = user.preferences.notifications
+      if (n && typeof n === 'object') {
+        setNotifications({
+          orderUpdates: Boolean(n.orderUpdates),
+          helperRequests: Boolean(n.helperRequests),
+        })
+      }
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (active === 'orders') {
+      try { loadOrders() } catch (_) {}
+    }
+  }, [active])
+
+  const savePreferences = async () => {
+    try {
+      await updateProfile({
+        preferences: {
+          ...(user?.preferences || {}),
+          currency,
+          twoFactorEnabled: twoFA,
+          notifications: {
+            ...(user?.preferences?.notifications || {}),
+            ...notifications,
+          },
+        },
+      })
+      toast.success('Preferences saved')
+    } catch (e) {
+      toast.error(e?.message || 'Failed to save preferences')
+    }
+  }
+
+  const handleChangePassword = async (e) => {
+    e?.preventDefault?.()
+    if (!pwd.current || !pwd.next || !pwd.confirm) {
+      toast.error('Please fill all password fields')
+      return
+    }
+    if (pwd.next.length < 6) {
+      toast.error('New password must be at least 6 characters')
+      return
+    }
+    if (pwd.next !== pwd.confirm) {
+      toast.error('New passwords do not match')
+      return
+    }
+    setPwdLoading(true)
+    try {
+      await authAPI.changePassword({ currentPassword: pwd.current, newPassword: pwd.next })
+      setPwd({ current: '', next: '', confirm: '' })
+      toast.success('Password updated')
+    } catch (e) {
+      toast.error(e?.message || 'Failed to update password')
+    } finally {
+      setPwdLoading(false)
+    }
+  }
+
+  const handleToggleTwoFA = async (enabled) => {
+    setTwoFA(enabled)
+    try {
+      await updateProfile({
+        preferences: {
+          ...(user?.preferences || {}),
+          twoFactorEnabled: enabled,
+        },
+      })
+      toast.success(enabled ? 'Two-step verification enabled' : 'Two-step verification disabled')
+    } catch (e) {
+      toast.error(e?.message || 'Failed to update two-step verification')
+      setTwoFA(!enabled)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -155,7 +253,7 @@ const UserSettings = () => {
                           <div className="text-sm text-gray-500">Name, photo, contact</div>
                         </div>
                       </div>
-                      <Button variant="outline">Manage</Button>
+                      <a href="/profile-settings" className="inline-flex"><Button variant="outline">Manage</Button></a>
                     </div>
                     <div className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-3">
@@ -167,7 +265,7 @@ const UserSettings = () => {
                           <div className="text-sm text-gray-500">Update your password</div>
                         </div>
                       </div>
-                      <Button variant="outline">Update</Button>
+                      <a href="#password" className="inline-flex"><Button variant="outline">Update</Button></a>
                     </div>
                     <div className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-3">
@@ -179,9 +277,51 @@ const UserSettings = () => {
                           <div className="text-sm text-gray-500">Add extra security</div>
                         </div>
                       </div>
-                      <Button>Enable</Button>
+                      <Switch id="twofa" checked={twoFA} onChange={handleToggleTwoFA} />
                     </div>
                   </div>
+                </Section>
+
+                {/* Change Password */}
+                <Section title="Change Password" description="Use a strong password and don’t reuse it on other sites.">
+                  <form onSubmit={handleChangePassword} className="grid grid-cols-1 md:grid-cols-3 gap-4" id="password">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                      <input
+                        type="password"
+                        value={pwd.current}
+                        onChange={(e) => setPwd((s) => ({ ...s, current: e.target.value }))}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="••••••••"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                      <input
+                        type="password"
+                        value={pwd.next}
+                        onChange={(e) => setPwd((s) => ({ ...s, next: e.target.value }))}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="At least 6 characters"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                      <input
+                        type="password"
+                        value={pwd.confirm}
+                        onChange={(e) => setPwd((s) => ({ ...s, confirm: e.target.value }))}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Repeat new password"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-3 flex justify-end">
+                      <Button type="submit" disabled={pwdLoading}>{pwdLoading ? 'Saving...' : 'Update Password'}</Button>
+                    </div>
+                  </form>
                 </Section>
               </div>
             )}
@@ -189,7 +329,7 @@ const UserSettings = () => {
             {active === 'orders' && (
               <div className="space-y-6">
                 <Section title="Orders" description="View and manage your orders">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center justify-between p-4 border rounded-lg mb-4">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
                         <Package className="h-5 w-5 text-orange-600" />
@@ -199,7 +339,34 @@ const UserSettings = () => {
                         <div className="text-sm text-gray-500">Track past orders and statuses</div>
                       </div>
                     </div>
-                    <Button>View Orders</Button>
+                    <a href="/orders" className="inline-flex"><Button>View Orders</Button></a>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-gray-500">
+                          <th className="py-2 pr-4">Order #</th>
+                          <th className="py-2 pr-4">Date</th>
+                          <th className="py-2 pr-4">Status</th>
+                          <th className="py-2 pr-4">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {(orders || []).slice(0, 5).map((o) => (
+                          <tr key={o.id || o._id}>
+                            <td className="py-2 pr-4">{o.orderNumber || (o.id || o._id)}</td>
+                            <td className="py-2 pr-4">{new Date(o.createdAt || Date.now()).toLocaleDateString()}</td>
+                            <td className="py-2 pr-4 capitalize">{o.status || 'pending'}</td>
+                            <td className="py-2 pr-4">₹{(o.total || o.payment?.amount || 0).toLocaleString('en-IN')}</td>
+                          </tr>
+                        ))}
+                        {(!orders || orders.length === 0) && (
+                          <tr>
+                            <td colSpan="4" className="py-6 text-center text-gray-500">No orders yet</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </Section>
               </div>
@@ -274,6 +441,9 @@ const UserSettings = () => {
                         </div>
                       </CardContent>
                     </Card>
+                    <div className="lg:col-span-2 flex justify-end">
+                      <Button onClick={savePreferences}>Save Preferences</Button>
+                    </div>
                   </div>
                 </Section>
               </div>

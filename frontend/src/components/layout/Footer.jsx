@@ -49,8 +49,8 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/second-hand" className="text-gray-300 hover:text-blue-400 transition-colors">
-                  Second-Hand
+                <Link to="/pre-loved" className="text-gray-300 hover:text-blue-400 transition-colors">
+                  Pre Loved
                 </Link>
               </li>
               <li>
@@ -59,8 +59,12 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/dashboard/customer" className="text-gray-300 hover:text-blue-400 transition-colors">
-                  Dashboard
+                <Link
+                  to="/admin-login"
+                  data-testid="nav-admin-login"
+                  className="text-gray-300 hover:text-blue-400 transition-colors"
+                >
+                  Admin Login
                 </Link>
               </li>
             </ul>
@@ -136,6 +140,13 @@ const Footer = () => {
               </Link>
               <Link to="/cookie-policy" className="text-gray-300 hover:text-blue-400 text-sm transition-colors">
                 Cookie Policy
+              </Link>
+              <Link
+                to="/admin-login"
+                data-testid="nav-admin-login"
+                className="text-gray-300 hover:text-blue-400 text-sm transition-colors"
+              >
+                Admin Login
               </Link>
             </div>
           </div>

@@ -1,32 +1,41 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Mail, Lock, User, Eye, EyeOff, Check } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
 import PrivacyPolicyModal from '../modals/PrivacyPolicyModal';
 import TermsOfServiceModal from '../modals/TermsOfServiceModal';
 
 const LoginModal = ({ isOpen, onClose, redirectTo = '/' }) => {
+  const navigate = useNavigate();
+  const { login, register } = useAuth();
+
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login, register } = useAuth();
-  const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
-
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfService, setShowTermsOfService] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [emailError, setEmailError] = useState('');
 
-  // Password strength checks for registration
-  const passwordRules = (() => {
+  // Ensure the modal renders at the document level to avoid parent overflow/z-index issues
+  const modalRoot = useMemo(() => {
+    const existing = document.getElementById('modal-root');
+    if (existing) return existing;
+    const node = document.createElement('div');
+    node.id = 'modal-root';
+    document.body.appendChild(node);
+    return node;
+  }, []);
+
+  const passwordRules = useMemo(() => {
     const p = formData.password || '';
     return {
       length: p.length >= 8,
@@ -35,44 +44,59 @@ const LoginModal = ({ isOpen, onClose, redirectTo = '/' }) => {
       number: /\d/.test(p),
       special: /[^A-Za-z0-9]/.test(p),
     };
-  })();
+  }, [formData.password]);
   const isStrongPassword = Object.values(passwordRules).every(Boolean);
 
+  // Reset state whenever the modal opens so each open is fresh
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+      setIsLogin(true);
+      setShowPassword(false);
+      setAgreedToTerms(false);
+      setEmailError('');
+    }
+  }, [isOpen]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
     if (e.target.name === 'email' && emailError) {
       setEmailError('');
     }
   };
 
-  // Third-party OAuth removed: only email/password auth
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Check if user agreed to terms (only for registration)
     if (!isLogin && !agreedToTerms) {
       toast.error('Please agree to our Terms of Service and Privacy Policy');
       return;
     }
-    
-    setLoading(true);
 
+    setLoading(true);
     try {
       if (isLogin) {
         const result = await login(formData.email, formData.password);
         if (result.success) {
           toast.success(`Welcome back, ${result.user.name.split(' ')[0]}!`);
-          onClose();
+          onClose?.();
           navigate(redirectTo);
         } else {
           toast.error(result.message);
         }
       } else {
-        // Enforce strong password on registration
         if (!isStrongPassword) {
           toast.error('Password must meet all strength requirements');
           setLoading(false);
@@ -87,13 +111,13 @@ const LoginModal = ({ isOpen, onClose, redirectTo = '/' }) => {
         const result = await register({
           name: formData.name,
           email: formData.email,
-          password: formData.password
+          password: formData.password,
         });
 
         if (result.success) {
           const firstName = (result.user?.name || 'there').split(' ')[0];
           toast.success(`Account created! Welcome, ${firstName}!`);
-          onClose();
+          onClose?.();
           navigate(redirectTo);
         } else {
           if (/already exists/i.test(result.message || '')) {
@@ -111,11 +135,14 @@ const LoginModal = ({ isOpen, onClose, redirectTo = '/' }) => {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
-      
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+  const modalMarkup = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      ></div>
+
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">
@@ -204,19 +231,19 @@ const LoginModal = ({ isOpen, onClose, redirectTo = '/' }) => {
                 <p className="text-gray-700 font-medium">Password must contain:</p>
                 <ul className="mt-1 space-y-1">
                   <li className={passwordRules.length ? 'text-green-600' : 'text-gray-500'}>
-                    {passwordRules.length ? '✓' : '•'} At least 8 characters
+                    {passwordRules.length ? '[OK]' : '[  ]'} At least 8 characters
                   </li>
                   <li className={passwordRules.upper ? 'text-green-600' : 'text-gray-500'}>
-                    {passwordRules.upper ? '✓' : '•'} An uppercase letter (A-Z)
+                    {passwordRules.upper ? '[OK]' : '[  ]'} An uppercase letter (A-Z)
                   </li>
                   <li className={passwordRules.lower ? 'text-green-600' : 'text-gray-500'}>
-                    {passwordRules.lower ? '✓' : '•'} A lowercase letter (a-z)
+                    {passwordRules.lower ? '[OK]' : '[  ]'} A lowercase letter (a-z)
                   </li>
                   <li className={passwordRules.number ? 'text-green-600' : 'text-gray-500'}>
-                    {passwordRules.number ? '✓' : '•'} A number (0-9)
+                    {passwordRules.number ? '[OK]' : '[  ]'} A number (0-9)
                   </li>
                   <li className={passwordRules.special ? 'text-green-600' : 'text-gray-500'}>
-                    {passwordRules.special ? '✓' : '•'} A special character (!@#$...)
+                    {passwordRules.special ? '[OK]' : '[  ]'} A special character (!@#$...)
                   </li>
                 </ul>
               </div>
@@ -252,8 +279,8 @@ const LoginModal = ({ isOpen, onClose, redirectTo = '/' }) => {
                   type="button"
                   onClick={() => setAgreedToTerms(!agreedToTerms)}
                   className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                    agreedToTerms 
-                      ? 'bg-blue-600 border-blue-600 text-white' 
+                    agreedToTerms
+                      ? 'bg-blue-600 border-blue-600 text-white'
                       : 'border-gray-300 hover:border-blue-500'
                   }`}
                 >
@@ -291,16 +318,14 @@ const LoginModal = ({ isOpen, onClose, redirectTo = '/' }) => {
             {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
           </button>
 
-          {/* Third-party auth removed */}
-
           <div className="text-center">
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
               className="text-blue-600 hover:underline text-sm"
             >
-              {isLogin 
-                ? "Don't have an account? Sign up" 
+              {isLogin
+                ? "Don't have an account? Sign up"
                 : "Already have an account? Sign in"
               }
             </button>
@@ -309,18 +334,20 @@ const LoginModal = ({ isOpen, onClose, redirectTo = '/' }) => {
       </div>
 
       {/* Privacy Policy Modal */}
-      <PrivacyPolicyModal 
-        isOpen={showPrivacyPolicy} 
-        onClose={() => setShowPrivacyPolicy(false)} 
+      <PrivacyPolicyModal
+        isOpen={showPrivacyPolicy}
+        onClose={() => setShowPrivacyPolicy(false)}
       />
 
       {/* Terms of Service Modal */}
-      <TermsOfServiceModal 
-        isOpen={showTermsOfService} 
-        onClose={() => setShowTermsOfService(false)} 
+      <TermsOfServiceModal
+        isOpen={showTermsOfService}
+        onClose={() => setShowTermsOfService(false)}
       />
     </div>
   );
+
+  return createPortal(modalMarkup, modalRoot);
 };
 
 export default LoginModal;

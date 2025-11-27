@@ -30,6 +30,8 @@ const UpiPayment = ({ amount, onSuccess, onError, orderId }) => {
 
       setPaymentData(response);
       toast.success('UPI payment initiated');
+      // Let parent create the order and confirm using this intent
+      onSuccess && onSuccess(response);
     } catch (error) {
       console.error('UPI payment error:', error);
       toast.error('Failed to initiate UPI payment');
@@ -137,10 +139,12 @@ const UpiPayment = ({ amount, onSuccess, onError, orderId }) => {
                   <span className="text-gray-600">UPI ID:</span>
                   <span className="font-mono">{upiId}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Order ID:</span>
-                  <span className="font-mono">{orderId}</span>
-                </div>
+                {orderId && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Order ID:</span>
+                    <span className="font-mono">{orderId}</span>
+                  </div>
+                )}
               </div>
             </div>
 
