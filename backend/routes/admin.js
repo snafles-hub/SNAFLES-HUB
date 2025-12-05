@@ -3,8 +3,6 @@ const { body, query, validationResult } = require('express-validator');
 const { adminAuth } = require('../middleware/auth');
 const User = require('../models/User');
 const Vendor = require('../models/Vendor');
-const Product = require('../models/Product');
-const Order = require('../models/Order');
 
 const router = express.Router();
 
@@ -14,81 +12,30 @@ const router = express.Router();
 router.get('/dashboard', adminAuth, async (req, res) => {
   try {
     // Get basic counts
-    const totalUsers = await User.countDocuments({ role: 'customer' });
-    const totalVendors = await User.countDocuments({ role: 'vendor' });
-    const totalProducts = await Product.countDocuments({ isActive: true });
-    const totalOrders = await Order.countDocuments();
+    const totalUsers = await User.countDocuments({ role: { $in: ['customer', 'buyer'] } });
+    const totalVendors = await Vendor.countDocuments();
+    const pendingVendorApprovals = await Vendor.countDocuments({ status: 'pending_verification' });
 
-    // Get revenue data
-    const revenueData = await Order.aggregate([
-      { $match: { status: 'delivered' } },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: '$total' },
-          averageOrderValue: { $avg: '$total' }
-        }
-      }
-    ]);
-
-    const totalRevenue = revenueData.length > 0 ? revenueData[0].totalRevenue : 0;
-    const averageOrderValue = revenueData.length > 0 ? revenueData[0].averageOrderValue : 0;
-
-    // Get pending approvals
-    const pendingVendorApprovals = await User.countDocuments({ 
-      role: 'vendor', 
-      isVerified: false 
-    });
-    const pendingProductApprovals = await Product.countDocuments({ 
-      approved: false, 
-      isActive: true 
-    });
-
-    // Get platform rating (average of all product ratings)
-    const ratingData = await Product.aggregate([
-      { $match: { isActive: true, approved: true } },
-      {
-        $group: {
-          _id: null,
-          averageRating: { $avg: '$rating' }
-        }
-      }
-    ]);
-
-    const platformRating = ratingData.length > 0 ? ratingData[0].averageRating : 0;
-
-    // Get recent activity
-    const recentUsers = await User.find({ role: 'customer' })
+    const recentUsers = await User.find({ role: { $in: ['customer', 'buyer'] } })
       .sort({ createdAt: -1 })
       .limit(5)
       .select('name email createdAt');
 
-    const recentVendors = await User.find({ role: 'vendor' })
+    const recentVendors = await Vendor.find()
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('name email createdAt isVerified');
-
-    const recentOrders = await Order.find()
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate('user', 'name email')
-      .select('orderNumber total status createdAt');
+      .select('name slug status createdAt')
+      .populate('owner', 'name email');
 
     res.json({
       stats: {
         totalUsers,
         totalVendors,
-        totalProducts,
-        totalOrders,
-        totalRevenue,
-        averageOrderValue,
-        pendingApprovals: pendingVendorApprovals + pendingProductApprovals,
-        platformRating: Math.round(platformRating * 10) / 10
+        pendingApprovals: pendingVendorApprovals
       },
       recentActivity: {
         users: recentUsers,
-        vendors: recentVendors,
-        orders: recentOrders
+        vendors: recentVendors
       }
     });
   } catch (error) {
@@ -103,7 +50,7 @@ router.get('/dashboard', adminAuth, async (req, res) => {
 router.get('/users', adminAuth, [
   query('page').optional().isInt({ min: 1 }),
   query('limit').optional().isInt({ min: 1, max: 100 }),
-  query('role').optional().isIn(['customer', 'vendor', 'admin']),
+  query('role').optional().isIn(['customer', 'vendor', 'admin', 'buyer']),
   query('status').optional().isIn(['active', 'inactive', 'banned']),
   query('search').optional().isLength({ min: 1 })
 ], async (req, res) => {
@@ -156,12 +103,12 @@ router.get('/users', adminAuth, [
 });
 
 // @route   GET /api/admin/vendors
-// @desc    Get all vendors with filtering and pagination
+// @desc    Get all vendor profiles with filtering and pagination
 // @access  Private (Admin)
 router.get('/vendors', adminAuth, [
   query('page').optional().isInt({ min: 1 }),
   query('limit').optional().isInt({ min: 1, max: 100 }),
-  query('status').optional().isIn(['verified', 'unverified', 'banned']),
+  query('status').optional().isIn(['verified', 'pending_verification', 'rejected', 'suspended', 'unverified']),
   query('search').optional().isLength({ min: 1 })
 ], async (req, res) => {
   try {
@@ -174,25 +121,30 @@ router.get('/vendors', adminAuth, [
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Build filter
-    const filter = { role: 'vendor' };
-    if (status === 'verified') filter.isVerified = true;
-    if (status === 'unverified') filter.isVerified = false;
-    if (status === 'banned') filter.isBanned = true;
+    const filter = {};
+    if (status) {
+      if (status === 'unverified') {
+        filter.status = { $ne: 'verified' };
+      } else {
+        filter.status = status;
+      }
+    }
     
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { slug: { $regex: search, $options: 'i' } },
+        { domainSub: { $regex: search, $options: 'i' } }
       ];
     }
 
-    const vendors = await User.find(filter)
-      .select('-password')
+    const vendors = await Vendor.find(filter)
+      .populate('owner', 'name email role')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await User.countDocuments(filter);
+    const total = await Vendor.countDocuments(filter);
 
     res.json({
       vendors,
@@ -281,7 +233,7 @@ router.put('/users/:id/status', adminAuth, [
 // @desc    Update vendor verification status
 // @access  Private (Admin)
 router.put('/vendors/:id/status', adminAuth, [
-  body('isVerified').isBoolean().withMessage('isVerified must be boolean'),
+  body('status').isIn(['pending_verification', 'verified', 'rejected', 'suspended']).withMessage('Invalid status'),
   body('reason').optional().isLength({ min: 1, max: 500 }).withMessage('Reason must be between 1 and 500 characters')
 ], async (req, res) => {
   try {
@@ -290,40 +242,60 @@ router.put('/vendors/:id/status', adminAuth, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { isVerified, reason } = req.body;
-    const vendor = await User.findById(req.params.id);
+    const { status, reason } = req.body;
+    const vendor = await Vendor.findById(req.params.id);
 
-    if (!vendor || vendor.role !== 'vendor') {
+    if (!vendor) {
       return res.status(404).json({ message: 'Vendor not found' });
     }
 
-    vendor.isVerified = isVerified;
+    vendor.status = status;
+    vendor.isVerified = status === 'verified';
+    if (status === 'suspended') vendor.isActive = false;
 
-    // Add verification history
-    if (!vendor.verificationHistory) vendor.verificationHistory = [];
-    vendor.verificationHistory.push({
-      isVerified,
-      reason,
-      verifiedBy: req.user._id,
-      verifiedAt: new Date()
-    });
+    // Add verification history on user record for backward compatibility
+    if (reason) {
+      if (!vendor.verificationHistory) vendor.verificationHistory = [];
+      vendor.verificationHistory.push({
+        status,
+        reason,
+        verifiedBy: req.user._id,
+        verifiedAt: new Date()
+      });
+    }
 
     await vendor.save();
 
     res.json({
-      message: 'Vendor verification status updated successfully',
-      vendor: {
-        id: vendor._id,
-        name: vendor.name,
-        email: vendor.email,
-        isVerified: vendor.isVerified
-      }
+      message: 'Vendor status updated successfully',
+      vendor
     });
   } catch (error) {
     console.error('Update vendor status error:', error);
     res.status(500).json({ message: 'Server error while updating vendor status' });
   }
 });
+
+const updateVendorStatus = (status) => async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+    vendor.status = status;
+    vendor.isVerified = status === 'verified';
+    if (status === 'suspended') vendor.isActive = false;
+    await vendor.save();
+    res.json({ message: `Vendor ${status}`, vendor });
+  } catch (error) {
+    console.error(`Vendor ${status} error:`, error);
+    res.status(500).json({ message: 'Server error while updating vendor' });
+  }
+};
+
+router.patch('/vendors/:id/verify', adminAuth, updateVendorStatus('verified'));
+router.patch('/vendors/:id/reject', adminAuth, updateVendorStatus('rejected'));
+router.patch('/vendors/:id/suspend', adminAuth, updateVendorStatus('suspended'));
 
 // Negotiation moderation endpoints removed for Phase-1
 

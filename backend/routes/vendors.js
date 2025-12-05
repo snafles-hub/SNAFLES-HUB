@@ -1,13 +1,100 @@
 const express = require('express');
 const { body, query, validationResult } = require('express-validator');
 const Vendor = require('../models/Vendor');
-const Product = require('../models/Product');
-const Order = require('../models/Order');
 const { auth, adminAuth } = require('../middleware/auth');
 const VendorFeedback = require('../models/VendorFeedback');
 const { vendorAuth } = require('../middleware/auth');
+const VendorFollow = require('../models/VendorFollow');
 
 const router = express.Router();
+
+const slugify = (value = '') => value
+  .toString()
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');
+
+// @route   POST /api/vendors/register
+// @desc    Vendor submits registration (vendor role required)
+// @access  Private (Vendor/Admin)
+router.post('/register', vendorAuth, [
+  body('storeName').trim().isLength({ min: 2 }).withMessage('storeName is required'),
+  body('location.city').optional().isString(),
+  body('location.state').optional().isString(),
+  body('location.country').optional().isString(),
+  body('location.pincode').optional().isString(),
+  body('address').optional().isString(),
+  body('hub').optional().isString()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const existing = await Vendor.findOne({ owner: req.user._id });
+    if (existing) {
+      return res.status(400).json({ message: 'Vendor profile already exists for this user', vendor: existing });
+    }
+
+    const baseSlug = slugify(req.body.storeName);
+    let slug = baseSlug;
+    let suffix = 1;
+    while (await Vendor.exists({ slug })) {
+      slug = `${baseSlug}-${suffix++}`;
+    }
+
+    const vendor = new Vendor({
+      name: req.body.storeName,
+      slug,
+      hub: (req.body.hub || 'snafleshub').toLowerCase(),
+      owner: req.user._id,
+      address: req.body.address,
+      location: req.body.location || {},
+      domainSub: `${slug}.snfhub.com`,
+      domainPath: `/stores/${slug}`,
+      status: 'pending_verification',
+      isVerified: false,
+      contact: {
+        email: req.user.email,
+        phone: req.user.phone
+      }
+    });
+
+    await vendor.save();
+
+    res.status(201).json({
+      message: 'Vendor registration submitted. Awaiting verification.',
+      vendor
+    });
+  } catch (error) {
+    console.error('Register vendor error:', error);
+    res.status(500).json({ message: 'Server error while registering vendor' });
+  }
+});
+
+// @route   GET /api/vendors/me
+// @desc    Get current vendor profile
+// @access  Private (Vendor/Admin)
+router.get('/me', vendorAuth, async (req, res) => {
+  try {
+    const vendor = await Vendor.findOne({ owner: req.user._id });
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor profile not found' });
+    }
+    res.json({
+      vendor,
+      domains: {
+        subdomain: vendor.domainSub,
+        path: vendor.domainPath
+      }
+    });
+  } catch (error) {
+    console.error('Get vendor me error:', error);
+    res.status(500).json({ message: 'Server error while fetching vendor profile' });
+  }
+});
 
 // @route   GET /api/vendors
 // @desc    Get all vendors with filtering and pagination
@@ -34,7 +121,7 @@ router.get('/', [
     } = req.query;
 
     // Build filter object
-    const filter = { isActive: true };
+    const filter = { isActive: true, status: { $ne: 'suspended' } };
     
     if (search) {
       filter.$text = { $search: search };
@@ -45,11 +132,15 @@ router.get('/', [
     }
     
     if (location) {
-      filter.location = { $regex: location, $options: 'i' };
+      filter.$or = [
+        { 'location.city': { $regex: location, $options: 'i' } },
+        { 'location.state': { $regex: location, $options: 'i' } },
+        { 'location.country': { $regex: location, $options: 'i' } }
+      ];
     }
     
     if (verified === 'true') {
-      filter.isVerified = true;
+      filter.status = 'verified';
     }
 
     // Calculate pagination
@@ -80,7 +171,7 @@ router.get('/', [
 });
 
 // @route   GET /api/vendors/:id
-// @desc    Get single vendor with products
+// @desc    Get single vendor profile
 // @access  Public
 router.get('/:id', async (req, res) => {
   try {
@@ -90,19 +181,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Vendor not found' });
     }
 
-    // Get vendor's products
-    const products = await Product.find({ 
-      vendor: req.params.id, 
-      isActive: true 
-    })
-      .select('name price images rating reviews category featured')
-      .sort({ featured: -1, createdAt: -1 })
-      .limit(20);
-
-    res.json({
-      vendor,
-      products
-    });
+    res.json({ vendor });
   } catch (error) {
     console.error('Get vendor error:', error);
     res.status(500).json({ message: 'Server error while fetching vendor' });
@@ -115,10 +194,14 @@ router.get('/:id', async (req, res) => {
 router.post('/', adminAuth, [
   body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
   body('description').trim().isLength({ min: 10 }).withMessage('Description must be at least 10 characters'),
-  body('location').trim().isLength({ min: 2 }).withMessage('Location must be at least 2 characters'),
+  body('location.city').optional().isString(),
+  body('location.state').optional().isString(),
+  body('location.country').optional().isString(),
+  body('location.pincode').optional().isString(),
   body('contact.email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
   body('logo').isURL().withMessage('Logo must be a valid URL'),
-  body('banner').isURL().withMessage('Banner must be a valid URL')
+  body('banner').isURL().withMessage('Banner must be a valid URL'),
+  body('owner').isMongoId().withMessage('Owner user id is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -218,7 +301,7 @@ router.put('/:id/verify', adminAuth, async (req, res) => {
 });
 
 // @route   GET /api/vendors/:id/stats
-// @desc    Get vendor statistics
+// @desc    Get vendor statistics (community metrics only)
 // @access  Private (Vendor/Admin)
 router.get('/:id/stats', auth, async (req, res) => {
   try {
@@ -229,37 +312,18 @@ router.get('/:id/stats', auth, async (req, res) => {
     }
 
     // Check if user is the vendor or admin
-    if (req.user.role !== 'admin' && req.user._id.toString() !== vendor._id.toString()) {
+    const ownerId = vendor.owner ? vendor.owner.toString() : null;
+    if (req.user.role !== 'admin' && req.user._id.toString() !== ownerId) {
       return res.status(403).json({ message: 'Not authorized to view vendor stats' });
     }
-
-    // Get vendor statistics
-    const totalProducts = await Product.countDocuments({ 
-      vendor: req.params.id, 
-      isActive: true 
-    });
-    
-    const totalOrders = await Order.countDocuments({ 
-      'items.vendor': req.params.id 
-    });
-    
-    const totalRevenue = await Order.aggregate([
-      { $match: { 'items.vendor': req.params.id, status: 'delivered' } },
-      { $unwind: '$items' },
-      { $match: { 'items.vendor': req.params.id } },
-      { $group: { _id: null, total: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } }
-    ]);
 
     res.json({
       vendor: {
         name: vendor.name,
-        rating: vendor.rating,
-        reviews: vendor.reviews
+        followers: vendor.followersCount
       },
       stats: {
-        totalProducts,
-        totalOrders,
-        totalRevenue: totalRevenue[0]?.total || 0
+        followers: vendor.followersCount
       }
     });
   } catch (error) {
@@ -269,25 +333,56 @@ router.get('/:id/stats', auth, async (req, res) => {
 });
 
 module.exports = router;
+// Buyer follow/unfollow vendor
+router.post('/:id/follow', auth, async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    const existing = await VendorFollow.findOne({ vendor: vendor._id, user: req.user._id });
+    if (existing) return res.status(200).json({ message: 'Already following' });
+
+    await VendorFollow.create({ vendor: vendor._id, user: req.user._id });
+    await Vendor.findByIdAndUpdate(vendor._id, { $inc: { followersCount: 1 } });
+    res.status(201).json({ message: 'Followed vendor' });
+  } catch (error) {
+    console.error('Follow vendor error:', error);
+    res.status(500).json({ message: 'Server error while following vendor' });
+  }
+});
+
+router.delete('/:id/follow', auth, async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    const removed = await VendorFollow.findOneAndDelete({ vendor: vendor._id, user: req.user._id });
+    if (removed) {
+      await Vendor.findByIdAndUpdate(vendor._id, { $inc: { followersCount: -1 } });
+    }
+    res.json({ message: 'Unfollowed vendor' });
+  } catch (error) {
+    console.error('Unfollow vendor error:', error);
+    res.status(500).json({ message: 'Server error while unfollowing vendor' });
+  }
+});
+
+router.get('/:id/follow', auth, async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+    const existing = await VendorFollow.findOne({ vendor: vendor._id, user: req.user._id });
+    res.json({ following: Boolean(existing) });
+  } catch (error) {
+    console.error('Check follow vendor error:', error);
+    res.status(500).json({ message: 'Server error while checking follow status' });
+  }
+});
 // Vendor order status updates
 router.patch('/orders/:id/status', vendorAuth, [
   body('status').isIn(['confirmed','shipped','delivered']).withMessage('Invalid status')
 ], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    const vendorId = String(req.user._id);
-    const hasItems = (order.items || []).some(i => String(i.vendor) === vendorId);
-    if (!hasItems) return res.status(403).json({ message: 'Not authorized for this order' });
-    order.status = req.body.status;
-    await order.save();
-    res.json({ message: 'Order status updated', order });
-  } catch (e) {
-    console.error('Vendor update order status error:', e);
-    res.status(500).json({ message: 'Server error' });
-  }
+  res.status(410).json({ message: 'Order management is disabled on the community showcase.' });
 });
 // Vendor feedback routes
 

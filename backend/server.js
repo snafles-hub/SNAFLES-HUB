@@ -127,22 +127,25 @@ app.use(morgan('combined'));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/products', require('./routes/products'));
 app.use('/api/vendors', require('./routes/vendors'));
-app.use('/api/orders', require('./routes/orders'));
+app.use('/api/vendor', require('./routes/vendorSelf'));
+app.use('/api/store', require('./routes/store'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
-app.use('/api/payments', require('./routes/payments'));
-app.use('/api/secondhand', require('./routes/secondhand'));
-app.use('/api/cart', require('./routes/cart'));
-// Chat/Negotiations removed for Phase-1 simple core
-app.use('/api/reviews', require('./routes/reviews'));
-app.use('/api/rewards', require('./routes/rewards'));
-app.use('/api/repayment', require('./routes/repayment'));
-app.use('/api/helper-points', require('./routes/helperPoints'));
 app.use('/api/admin', require('./routes/admin'));
-app.use('/api/vendor/analytics', require('./routes/vendorAnalytics'));
-app.use('/api/shipping', require('./routes/shipping'));
+// E-commerce endpoints disabled for community-only experience
+const disabledEcommerce = require('./routes/disabledEcommerce');
+app.use('/api/products', disabledEcommerce);
+app.use('/api/orders', disabledEcommerce);
+app.use('/api/payments', disabledEcommerce);
+app.use('/api/cart', disabledEcommerce);
+app.use('/api/secondhand', disabledEcommerce);
+app.use('/api/reviews', disabledEcommerce);
+app.use('/api/rewards', disabledEcommerce);
+app.use('/api/repayment', disabledEcommerce);
+app.use('/api/helper-points', disabledEcommerce);
+app.use('/api/vendor/analytics', disabledEcommerce);
+app.use('/api/shipping', disabledEcommerce);
 // Web auth redirect examples (form-POST friendly)
 app.use('/', require('./routes/authRedirect'));
 

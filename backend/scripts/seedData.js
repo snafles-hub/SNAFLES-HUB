@@ -54,6 +54,20 @@ const seedUsers = async () => {
       }
     },
     {
+      name: 'Vendor User Two',
+      email: 'vendor2@snafles.com',
+      password: 'vendor123',
+      role: 'vendor',
+      phone: '+91 99999 11111',
+      address: {
+        street: '12 Vendor Lane',
+        city: 'New Delhi',
+        state: 'Delhi',
+        zipCode: '110001',
+        country: 'India'
+      }
+    },
+    {
       name: 'Admin User',
       email: 'admin@snafles.com',
       password: 'admin123',
@@ -83,13 +97,26 @@ const seedUsers = async () => {
 
 const seedVendors = async () => {
   // Seed exactly two vendor profiles as requested: Baani Makover and Tanmay Arora
+  const ownerEmailByVendor = {
+    'Baani Makover': 'vendor@snafles.com',
+    'Tanmay Arora': 'vendor2@snafles.com'
+  };
+  const owners = await User.find({ email: { $in: Object.values(ownerEmailByVendor) } });
+  const ownerLookup = new Map();
+  owners.forEach((u) => ownerLookup.set(u.email, u._id));
+
   const vendors = [
     {
       name: 'Baani Makover',
       description: 'Professional makeup artist offering premium cosmetics and personalized beauty solutions.',
       logo: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=200&h=200&fit=crop',
       banner: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=1200&h=400&fit=crop',
-      location: 'Mumbai, India',
+      location: {
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        country: 'India',
+        pincode: '400001'
+      },
       categories: ['Accessories', 'Art'],
       rating: 4.8,
       reviews: 0,
@@ -99,13 +126,19 @@ const seedVendors = async () => {
         website: 'https://banimakeovers.com'
       },
       isVerified: true,
+      status: 'verified'
     },
     {
       name: 'Tanmay Arora',
       description: 'Master craftsman specializing in traditional Indian jewelry with a modern twist.',
       logo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop',
       banner: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&h=400&fit=crop',
-      location: 'New Delhi, India',
+      location: {
+        city: 'New Delhi',
+        state: 'Delhi',
+        country: 'India',
+        pincode: '110001'
+      },
       categories: ['Jewelry', 'Accessories'],
       rating: 4.9,
       reviews: 0,
@@ -115,12 +148,17 @@ const seedVendors = async () => {
         website: 'https://tanmayarora.com'
       },
       isVerified: true,
+      status: 'verified'
     },
   ]
 
   for (const vendorData of vendors) {
     const existingVendor = await Vendor.findOne({ name: vendorData.name })
     if (!existingVendor) {
+      const ownerEmail = ownerEmailByVendor[vendorData.name];
+      if (ownerEmail && ownerLookup.has(ownerEmail)) {
+        vendorData.owner = ownerLookup.get(ownerEmail);
+      }
       const vendor = new Vendor(vendorData)
       await vendor.save()
       console.log(`Created vendor: ${vendorData.name}`)

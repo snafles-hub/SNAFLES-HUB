@@ -30,26 +30,14 @@ function setAuthCookie(res, token) {
   return csrfToken
 }
 
-// @route   GET /api/auth/csrf
-// @desc    Issue/refresh CSRF token cookie
-// @access  Public
-router.get('/csrf', (req, res) => {
-  const isProd = process.env.NODE_ENV === 'production'
-  const sameSite = isProd ? 'strict' : 'lax'
-  const csrfToken = csrf.generateToken()
-  csrf.setTokenCookie(res, csrfToken, { secure: isProd, sameSite })
-  res.json({ csrfToken })
-});
-
-// @route   POST /api/auth/register
-// @desc    Register a new user
-// @access  Public
-router.post('/register', [
+const registerValidators = [
   body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('phone').optional().isMobilePhone().withMessage('Please provide a valid phone number')
-], async (req, res) => {
+];
+
+const handleRegister = async (req, res, roleOverride) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -75,6 +63,7 @@ router.post('/register', [
       password,
       phone,
       address,
+      role: roleOverride || undefined,
       emailVerificationToken: hashedVerificationToken,
       emailVerificationExpires: new Date(Date.now() + 1000 * 60 * 60 * 24) // 24 hours
     });
@@ -110,7 +99,33 @@ router.post('/register', [
     console.error('Registration error:', error);
     res.status(500).json({ message: 'Server error during registration' });
   }
+};
+
+// @route   GET /api/auth/csrf
+// @desc    Issue/refresh CSRF token cookie
+// @access  Public
+router.get('/csrf', (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production'
+  const sameSite = isProd ? 'strict' : 'lax'
+  const csrfToken = csrf.generateToken()
+  csrf.setTokenCookie(res, csrfToken, { secure: isProd, sameSite })
+  res.json({ csrfToken })
 });
+
+// @route   POST /api/auth/register
+// @desc    Register a new user (defaults to buyer)
+// @access  Public
+router.post('/register', registerValidators, (req, res) => handleRegister(req, res));
+
+// @route   POST /api/auth/register-buyer
+// @desc    Register a buyer account
+// @access  Public
+router.post('/register-buyer', registerValidators, (req, res) => handleRegister(req, res, 'buyer'));
+
+// @route   POST /api/auth/register-vendor
+// @desc    Register a vendor account
+// @access  Public
+router.post('/register-vendor', registerValidators, (req, res) => handleRegister(req, res, 'vendor'));
 
 // @route   POST /api/auth/login
 // @desc    Login user

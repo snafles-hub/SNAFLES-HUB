@@ -1,231 +1,350 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
-import { AuthProvider } from './contexts/AuthContext'
-import { CartProvider } from './contexts/CartContext'
-import { ProductProvider } from './contexts/ProductContext'
-import { OrderProvider } from './contexts/OrderContext'
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
 
-// Layout Components
-import Navbar from './components/layout/Navbar'
-import Footer from './components/layout/Footer'
+const apiHost = import.meta.env.VITE_API_URL || '';
 
-// Pages
-import Home from './pages/Home'
-import Products from './pages/Products'
-import ProductDetail from './pages/ProductDetail'
-import Vendors from './pages/Vendors'
-import VendorShop from './pages/VendorShop'
-import Cart from './pages/Cart'
-import Checkout from './pages/Checkout'
-import Orders from './pages/Orders'
-import Profile from './pages/Profile'
-import ProfileSettings from './pages/ProfileSettings'
-// Settings page now uses the new UserSettings component
-import Login from './pages/Login'
-import ForgotPassword from './pages/ForgotPassword'
-import ResetPassword from './pages/ResetPassword'
-import Wishlist from './pages/Wishlist'
+const Shell = ({ children }) => (
+  <div className="min-h-screen bg-gradient-app text-slate-900">
+    <header className="border-b border-indigo-100/60 bg-white/80 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+        <Link to="/" className="text-xl font-semibold tracking-tight text-slate-900">
+          Snafleshub Hub
+        </Link>
+        <nav className="flex items-center gap-4 text-sm font-semibold text-indigo-700">
+          <Link to="/vendors" className="hover:text-indigo-900">Vendors</Link>
+          <Link to="/support" className="hover:text-indigo-900">Support</Link>
+          <a href="#apis" className="hover:text-indigo-900">APIs</a>
+        </nav>
+      </div>
+    </header>
+    <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+    <footer className="border-t border-indigo-100/70 bg-white/80 py-6 text-center text-sm text-indigo-700">
+      Snafleshub central community hub — all vendors, support, and APIs in one place.
+    </footer>
+  </div>
+);
 
-// Vendor Pages
-import VendorDashboard from './pages/VendorDashboard'
-import VendorLogin from './pages/VendorLogin'
-import VendorRegister from './pages/VendorRegister'
+const Home = () => {
+  const navigate = useNavigate();
+  const [vendors, setVendors] = useState([]);
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
 
-// Admin Pages
-import AdminDashboard from './pages/AdminDashboard'
-import AdminLogin from './pages/AdminLogin'
+  useEffect(() => {
+    let ignore = false;
+    setLoading(true);
+    fetch(`${apiHost}/api/vendors?verified=true&limit=12`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!ignore) {
+          setVendors(data?.vendors || []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => !ignore && setLoading(false));
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
-// Review Pages
-import Reviews from './pages/Reviews'
-import VendorProfile from './pages/VendorProfile'
-import VerifyEmail from './pages/VerifyEmail'
-import ShoppingMascotDemo from './pages/ShoppingMascotDemo'
-import OrderSuccess from './pages/OrderSuccess'
-import OrderTracking from './pages/OrderTracking'
-import Refund from './pages/Refund'
-import Exchange from './pages/Exchange'
-import HelpCenter from './pages/HelpCenter'
-import ShippingInfo from './pages/ShippingInfo'
-import Contact from './pages/Contact'
-import PrivacyPolicy from './pages/PrivacyPolicy'
-import TermsOfService from './pages/TermsOfService'
-import AuthGuard from './components/routing/AuthGuard'
-import NotFound from './pages/NotFound'
-import TitleManager from './components/routing/TitleManager'
-import SecondHand from './pages/SecondHand'
-import ReturnsPolicy from './pages/ReturnsPolicy'
-import HelperPointsPage from './pages/HelperPoints'
-import CookiePolicy from './pages/CookiePolicy'
-import UserSettings from './pages/UserSettings'
-import NetworkStatusBanner from './components/common/NetworkStatusBanner'
+  const filtered = vendors.filter((v) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return v.name?.toLowerCase().includes(q) || v.slug?.toLowerCase().includes(q) || v.location?.city?.toLowerCase?.()?.includes(q);
+  });
+
+  return (
+    <Shell>
+      <div className="grid gap-10 lg:grid-cols-[1.05fr,0.95fr]">
+        <div className="space-y-6">
+          <p className="inline-flex rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-orange-700">Central Hub</p>
+          <h1 className="text-4xl font-semibold leading-tight text-slate-900">
+            All of Snafleshub, in one place. Vendor homes, support, and APIs — zero e‑commerce clutter.
+          </h1>
+          <p className="text-lg text-slate-600">
+            Snafleshub Hub is the command center for the ecosystem. Discover verified vendors, reach support, and jump into our APIs from a single home.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => document.getElementById('vendor-search')?.focus()}
+              className="rounded-md bg-gradient-to-r from-blue-600 via-indigo-700 to-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-indigo-700 hover:to-slate-950"
+            >
+              Browse vendors
+            </button>
+            <a
+              href="#support"
+              className="rounded-md border border-indigo-200 px-4 py-2 text-sm font-semibold text-indigo-800 hover:border-indigo-300 hover:bg-indigo-50"
+            >
+              Visit support hub
+            </a>
+            <a
+              href="#apis"
+              className="rounded-md border border-purple-200 px-4 py-2 text-sm font-semibold text-purple-800 hover:border-purple-300 hover:bg-purple-50"
+            >
+              View APIs
+            </a>
+          </div>
+          <div className="rounded-xl border border-indigo-100 bg-white p-5 shadow-sm">
+            <label htmlFor="vendor-search" className="text-sm font-semibold text-slate-700">
+              Search vendor directory
+            </label>
+            <input
+              id="vendor-search"
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name, slug, or city"
+              className="mt-2 w-full rounded-md border border-indigo-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
+        </div>
+        <div className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(79,70,229,0.12),transparent_35%),radial-gradient(circle_at_70%_40%,rgba(249,115,22,0.12),transparent_30%)]" />
+          <div className="relative space-y-4">
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Hub checklist</p>
+            <ul className="space-y-3 text-sm text-slate-700">
+              <li>✅ Verified vendor directory with personalized subdomains</li>
+              <li>✅ Support hub for vendors and buyers</li>
+              <li>✅ API links for sh-vendor and SHStore integrations</li>
+              <li>✅ Purely community and content — no checkout flows</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <section className="mt-12 space-y-6" id="vendors">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold text-slate-900">Featured vendors</h2>
+          {loading && <span className="text-sm text-slate-500">Loading…</span>}
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((vendor) => (
+            <div key={vendor._id} className="group rounded-xl border border-indigo-100 bg-white p-5 shadow-sm hover:-translate-y-1 hover:shadow-md transition">
+              <div className="mb-3 flex items-center justify-between text-xs uppercase tracking-wide text-indigo-600">
+                <span>{vendor.hub || 'snafleshub'}</span>
+                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700">{vendor.location?.city || vendor.location}</span>
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900">{vendor.name}</h3>
+              <p className="mt-2 line-clamp-2 text-sm text-slate-600">{vendor.tagline || vendor.description || 'Vendor on Snafleshub'}</p>
+              <button
+                onClick={() => navigate(`/vendor/${vendor.slug || vendor._id}`)}
+                className="mt-4 text-sm font-semibold text-orange-600 hover:text-orange-700"
+              >
+                View profile →
+              </button>
+            </div>
+          ))}
+          {!loading && filtered.length === 0 && (
+            <div className="col-span-full rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+              No vendors found. Try a different search.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="mt-12 grid gap-6 lg:grid-cols-2" id="support">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-xl font-semibold text-slate-900">Support hub</h3>
+          <p className="mt-2 text-sm text-slate-600">Help for vendors and buyers in one place.</p>
+          <ul className="mt-4 space-y-2 text-sm text-slate-700">
+            <li>• Vendor onboarding & verification</li>
+            <li>• Domain and subdomain setup</li>
+            <li>• SHStore app assistance</li>
+            <li>• Contact Snafleshub LLP support</li>
+          </ul>
+          <Link to="/support" className="mt-4 inline-block text-sm font-semibold text-orange-600 hover:text-orange-700">
+            Open support hub →
+          </Link>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" id="apis">
+          <h3 className="text-xl font-semibold text-slate-900">API & integration</h3>
+          <p className="mt-2 text-sm text-slate-600">Connect sh-vendor, SHStore, or your own tools.</p>
+          <ul className="mt-4 space-y-2 text-sm text-slate-700">
+            <li>• Vendor profile API (slug-based domain resolution)</li>
+            <li>• Public store info API for SHStore</li>
+            <li>• Subdomain/path-based routing middleware</li>
+            <li>• More endpoints coming for community interactions</li>
+          </ul>
+          <a href="mailto:api@snafleshub.com" className="mt-4 inline-block text-sm font-semibold text-orange-600 hover:text-orange-700">
+            Request API keys →
+          </a>
+        </div>
+      </section>
+    </Shell>
+  );
+};
+
+const VendorPage = () => {
+  const { slug } = useParams();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${apiHost}/api/store/${slug}/info`)
+      .then((res) => res.json())
+      .then((data) => setProfile(data?.store || null))
+      .catch(() => setProfile(null))
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  if (loading) return <Shell><p className="text-slate-600">Loading vendor profile…</p></Shell>;
+  if (!profile) return <Shell><p className="text-slate-600">Vendor not found.</p></Shell>;
+
+  return (
+    <Shell>
+      <div className="grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
+        <div className="space-y-4">
+          <p className="text-xs uppercase tracking-wide text-indigo-600">{profile.domainSub}</p>
+          <h1 className="text-3xl font-semibold text-slate-900">{profile.name}</h1>
+          {profile.tagline && <p className="text-lg text-slate-700">{profile.tagline}</p>}
+          {profile.about && <p className="text-slate-600">{profile.about}</p>}
+          <div className="flex flex-wrap gap-3 text-sm text-slate-500">
+            {profile.location?.city && <span className="rounded-full bg-indigo-50 px-3 py-1">📍 {profile.location.city}</span>}
+            {typeof profile.followersCount === 'number' && <span className="rounded-full bg-purple-50 px-3 py-1">👥 {profile.followersCount} followers</span>}
+          </div>
+          {profile.socialLinks && (
+            <div className="flex flex-wrap gap-3 text-sm font-semibold text-indigo-700">
+              {profile.socialLinks.website && <a href={profile.socialLinks.website} className="hover:text-orange-700" target="_blank" rel="noreferrer">Website</a>}
+              {profile.socialLinks.instagram && <a href={profile.socialLinks.instagram} className="hover:text-orange-700" target="_blank" rel="noreferrer">Instagram</a>}
+              {profile.socialLinks.youtube && <a href={profile.socialLinks.youtube} className="hover:text-orange-700" target="_blank" rel="noreferrer">YouTube</a>}
+              {profile.socialLinks.facebook && <a href={profile.socialLinks.facebook} className="hover:text-orange-700" target="_blank" rel="noreferrer">Facebook</a>}
+              {profile.socialLinks.twitter && <a href={profile.socialLinks.twitter} className="hover:text-orange-700" target="_blank" rel="noreferrer">Twitter</a>}
+            </div>
+          )}
+        </div>
+        <div className="rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Highlights</h2>
+          <div className="mt-4 space-y-4">
+            {(profile.highlights || []).map((item, idx) => (
+              <div key={idx} className="rounded-lg border border-indigo-50 bg-indigo-50/60 p-3">
+                <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                <p className="text-sm text-slate-600">{item.body}</p>
+                {item.ctaUrl && (
+                  <a href={item.ctaUrl} className="text-sm font-semibold text-orange-600 hover:text-orange-700" target="_blank" rel="noreferrer">
+                    {item.ctaLabel || 'Learn more'} →
+                  </a>
+                )}
+              </div>
+            ))}
+            {(profile.highlights || []).length === 0 && (
+              <p className="text-sm text-slate-500">This vendor hasn't added highlights yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
+      {profile.showcaseMedia?.length > 0 && (
+        <section className="mt-12 space-y-4">
+          <h3 className="text-xl font-semibold text-slate-900">Showcase</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {profile.showcaseMedia.map((media, idx) => (
+              <div key={idx} className="overflow-hidden rounded-xl border border-indigo-100 bg-white shadow-sm">
+                <div className="aspect-video w-full bg-indigo-50">
+                  {media.type === 'video' ? (
+                    <video src={media.url} controls className="h-full w-full object-cover" />
+                  ) : (
+                    <img src={media.url} alt={media.title || 'Showcase item'} className="h-full w-full object-cover" />
+                  )}
+                </div>
+                <div className="p-4">
+                  <p className="text-sm font-semibold text-slate-900">{media.title}</p>
+                  <p className="text-sm text-slate-600">{media.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </Shell>
+  );
+};
+
+const VendorsListPage = () => {
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${apiHost}/api/vendors?verified=true&limit=50`)
+      .then((res) => res.json())
+      .then((data) => setVendors(data?.vendors || []))
+      .catch(() => setVendors([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <Shell>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Directory</p>
+          <h1 className="text-3xl font-semibold text-slate-900">All vendors</h1>
+        </div>
+        {loading && <span className="text-sm text-slate-500">Loading…</span>}
+      </div>
+      <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {vendors.map((vendor) => (
+          <div key={vendor._id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-slate-500">{vendor.hub || 'snafleshub'}</p>
+            <h3 className="mt-2 text-lg font-semibold text-slate-900">{vendor.name}</h3>
+            <p className="mt-1 text-sm text-slate-600">{vendor.tagline || vendor.description || 'Vendor on Snafleshub'}</p>
+            <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+              {vendor.location?.city && <span>📍 {vendor.location.city}</span>}
+              {vendor.status && <span className="rounded-full bg-slate-100 px-2 py-0.5">{vendor.status}</span>}
+            </div>
+            <Link to={`/vendor/${vendor.slug || vendor._id}`} className="mt-4 inline-block text-sm font-semibold text-orange-600 hover:text-orange-700">
+              View profile →
+            </Link>
+          </div>
+        ))}
+        {!loading && vendors.length === 0 && (
+          <div className="col-span-full rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+            No vendors yet. Check back soon.
+          </div>
+        )}
+      </div>
+    </Shell>
+  );
+};
+
+const SupportPage = () => (
+  <Shell>
+    <div className="space-y-6">
+      <p className="text-xs uppercase tracking-wide text-slate-500">Support</p>
+      <h1 className="text-3xl font-semibold text-slate-900">Snafleshub Support Hub</h1>
+      <p className="text-lg text-slate-600">
+        Guidance for vendors, buyers, and integrators. No commerce here—just help and resources.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[
+          { title: 'Vendor onboarding', body: 'Register via sh-vendor, submit verification, and claim your domain.' },
+          { title: 'Domains & routing', body: 'Understand subdomains, path routing, and DNS tips for your vendor home.' },
+          { title: 'Profile content', body: 'Add bio, media, links, and highlights to personalize your hub page.' },
+          { title: 'SHStore app', body: 'How the Android app reads vendor profiles and store info APIs.' },
+          { title: 'API access', body: 'Request API keys and integrate vendor lookup or store info.' },
+          { title: 'Contact support', body: 'Email hello@snafleshub.com for verification or domain questions.' },
+        ].map((card, idx) => (
+          <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-sm font-semibold text-slate-900">{card.title}</p>
+            <p className="mt-2 text-sm text-slate-600">{card.body}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </Shell>
+);
 
 function App() {
-  console.log('App component rendering...')
-  
   return (
     <Router>
-        <TitleManager />
-        <NetworkStatusBanner />
-        <AuthProvider>
-          <CartProvider>
-            <ProductProvider>
-              <OrderProvider>
-              <div className="min-h-screen gradient-app">
-              <Navbar />
-                  <main>
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/forgot-password" element={<ForgotPassword />} />
-                      <Route path="/reset-password/:token" element={<ResetPassword />} />
-                      <Route path="/verify-email/:token" element={<VerifyEmail />} />
-                      
-                      {/* Guest Allowed Routes - Can browse without login */}
-                      <Route path="/products" element={
-                        <AuthGuard requireAuth={false} guestAllowed={true}>
-                          <Products />
-                        </AuthGuard>
-                      } />
-                      <Route path="/product/:id" element={
-                        <AuthGuard requireAuth={false} guestAllowed={true}>
-                          <ProductDetail />
-                        </AuthGuard>
-                      } />
-                      <Route path="/vendors" element={
-                        <AuthGuard requireAuth={false} guestAllowed={true}>
-                          <Vendors />
-                        </AuthGuard>
-                      } />
-                      <Route path="/pre-loved" element={
-                        <AuthGuard requireAuth={false} guestAllowed={true}>
-                          <SecondHand />
-                        </AuthGuard>
-                      } />
-                      <Route path="/second-hand" element={<Navigate to="/pre-loved" replace />} />
-                      <Route path="/vendor/:id" element={
-                        <AuthGuard requireAuth={false} guestAllowed={true}>
-                          <VendorShop />
-                        </AuthGuard>
-                      } />
-                      <Route path="/cart" element={
-                        <AuthGuard requireAuth={false} guestAllowed={true}>
-                          <Cart />
-                        </AuthGuard>
-                      } />
-                      <Route path="/checkout" element={
-                        <AuthGuard requireAuth={true}>
-                          <Checkout />
-                        </AuthGuard>
-                      } />
-                      <Route path="/orders" element={
-                        <AuthGuard requireAuth={true}>
-                          <Orders />
-                        </AuthGuard>
-                      } />
-                      <Route path="/order-success/:orderId" element={
-                        <AuthGuard requireAuth={true}>
-                          <OrderSuccess />
-                        </AuthGuard>
-                      } />
-                      <Route path="/track-order" element={<OrderTracking />} />
-                      <Route path="/track-order/:orderId" element={<OrderTracking />} />
-                      <Route path="/refund" element={
-                        <AuthGuard requireAuth={true}>
-                          <Refund />
-                        </AuthGuard>
-                      } />
-        <Route path="/exchange" element={
-          <AuthGuard requireAuth={true}>
-            <Exchange />
-          </AuthGuard>
-        } />
-        <Route path="/help-center" element={<HelpCenter />} />
-        <Route path="/shipping-info" element={<ShippingInfo />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/terms-of-service" element={<TermsOfService />} />
-        <Route path="/policies/returns" element={<ReturnsPolicy />} />
-        <Route path="/cookie-policy" element={<CookiePolicy />} />
-                      <Route path="/profile" element={
-                        <AuthGuard requireAuth={true}>
-                          <Profile />
-                        </AuthGuard>
-                      } />
-                      <Route path="/profile-settings" element={
-                        <AuthGuard requireAuth={true}>
-                          <ProfileSettings />
-                        </AuthGuard>
-                      } />
-                      <Route path="/settings" element={
-                        <AuthGuard requireAuth={true}>
-                          <UserSettings />
-                        </AuthGuard>
-                      } />
-                      <Route path="/wishlist" element={
-                        <AuthGuard requireAuth={true}>
-                          <Wishlist />
-                        </AuthGuard>
-                      } />
-                      <Route path="/helper-points" element={
-                        <AuthGuard requireAuth={true}>
-                          <HelperPointsPage />
-                        </AuthGuard>
-                      } />
-                      
-                      <Route path="/reviews" element={
-                        <AuthGuard requireAuth={true}>
-                          <Reviews />
-                        </AuthGuard>
-                      } />
-                      <Route path="/reviews/:type/:id" element={
-                        <AuthGuard requireAuth={true}>
-                          <Reviews />
-                        </AuthGuard>
-                      } />
-                  
-                  {/* Vendor Routes */}
-                  <Route path="/dashboard/vendor" element={
-                    <AuthGuard requireAuth={true} allowedRoles={['vendor', 'admin']}>
-                      <VendorDashboard />
-                    </AuthGuard>
-                  } />
-                  <Route path="/vendor-login" element={<VendorLogin />} />
-                  <Route path="/vendor-register" element={<VendorRegister />} />
-                  <Route path="/vendor/:id/profile" element={
-                    <AuthGuard requireAuth={true}>
-                      <VendorProfile />
-                    </AuthGuard>
-                  } />
-                  
-                  {/* Admin Routes */}
-                  <Route path="/dashboard/admin" element={
-                    <AuthGuard requireAuth={true} allowedRoles={['admin']}>
-                      <AdminDashboard />
-                    </AuthGuard>
-                  } />
-                  <Route path="/dashboard/customer" element={
-                    <AuthGuard requireAuth={true} allowedRoles={['customer','vendor','admin']}>
-                      <Profile />
-                    </AuthGuard>
-                  } />
-                  <Route path="/admin-login" element={<AdminLogin />} />
-                  
-                  {/* Demo Routes */}
-                  <Route path="/shopping-mascot-demo" element={<ShoppingMascotDemo />} />
-                  
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </main>
-              <Footer />
-              <Toaster position="top-right" />
-              </div>
-              </OrderProvider>
-            </ProductProvider>
-          </CartProvider>
-        </AuthProvider>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/vendors" element={<VendorsListPage />} />
+        <Route path="/vendor/:slug" element={<VendorPage />} />
+        <Route path="/support" element={<SupportPage />} />
+        <Route path="*" element={<Shell><p className="text-slate-600">Page not found.</p></Shell>} />
+      </Routes>
     </Router>
-    )
-  }
+  );
+}
 
-export default App
+export default App;

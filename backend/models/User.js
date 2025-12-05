@@ -14,10 +14,12 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  // Stored as `password`, accessible via passwordHash alias for new code
   password: {
     type: String,
     required: true,
-    minlength: 6
+    minlength: 6,
+    alias: 'passwordHash'
   },
   phone: {
     type: String,
@@ -46,8 +48,8 @@ const userSchema = new mongoose.Schema({
   }],
   role: {
     type: String,
-    enum: ['customer', 'vendor', 'admin'],
-    default: 'customer'
+    enum: ['buyer', 'customer', 'vendor', 'admin'],
+    default: 'buyer'
   },
   paymentVerified: {
     type: Boolean,
@@ -153,6 +155,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 userSchema.methods.toJSON = function() {
   const user = this.toObject();
   delete user.password;
+  delete user.passwordHash;
   return user;
 };
 

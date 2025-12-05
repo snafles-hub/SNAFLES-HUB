@@ -9,16 +9,26 @@ const orderSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    alias: 'buyerId'
+  },
+  vendor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vendor',
+    alias: 'vendorId'
   },
   items: [{
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
-      required: true
+      required: true,
+      alias: 'productId'
     },
     name: String,
-    price: Number,
+    price: {
+      type: Number,
+      alias: 'priceAtPurchase'
+    },
     quantity: {
       type: Number,
       required: true,
@@ -66,7 +76,8 @@ const orderSchema = new mongoose.Schema({
   },
   total: {
     type: Number,
-    required: true
+    required: true,
+    alias: 'totalAmount'
   },
   subtotal: Number,
   shippingCost: {
@@ -110,10 +121,19 @@ orderSchema.pre('save', function(next) {
   next();
 });
 
+orderSchema.virtual('shippingAddress')
+  .get(function() {
+    return this.shipping;
+  })
+  .set(function(value) {
+    this.shipping = value;
+  });
+
 // Index for efficient queries
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ orderNumber: 1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ 'tracking.trackingNumber': 1 });
+orderSchema.index({ vendor: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Order', orderSchema);

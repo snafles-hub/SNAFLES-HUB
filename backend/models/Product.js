@@ -4,7 +4,8 @@ const productSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    alias: 'title'
   },
   description: {
     type: String,
@@ -15,6 +16,12 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0
+  },
+  currency: {
+    type: String,
+    default: 'INR',
+    uppercase: true,
+    trim: true
   },
   kind: {
     type: String,
@@ -41,7 +48,8 @@ const productSchema = new mongoose.Schema({
   vendor: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vendor',
-    required: true
+    required: true,
+    alias: 'vendorId'
   },
   vendorUser: {
     type: mongoose.Schema.Types.ObjectId,
@@ -59,7 +67,8 @@ const productSchema = new mongoose.Schema({
   stock: {
     type: Number,
     default: 0,
-    min: 0
+    min: 0,
+    alias: 'stockQuantity'
   },
   rating: {
     type: Number,
